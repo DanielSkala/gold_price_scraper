@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "gold_price_scraper"
+version = "0.1.0"
+description = "Fetch gold spot prices and calculate gold bar premiums by parsing zlataky.sk"
+authors = ["Daniel Skala danko.skala@gmail.com"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aiohttp = "^3.8.1"
+plotly = "^5.15.0"
+yfinance = "^0.2.18"
+beautifulsoup4 = "^4.11.1"
+
+[tool.black]
+line-length = 99
+
+[tool.isort]
+profile = "black"
+
