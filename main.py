@@ -123,6 +123,7 @@ def main():
     }
 
     gold_spot_price = get_gold_spot_price()
+    logger.info(f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz")
     prices_dict = asyncio.run(extract_all_prices(gold_bars))
 
     weights, premiums = [], []
