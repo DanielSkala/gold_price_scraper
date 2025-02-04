@@ -7,3 +7,6 @@ The bars are only from Argor Heraeus because I like those.
 2. `poetry install --no-root`
 3. Run the `main.py` script. No env vars or api keys are needed.
 
+Here is a sample output as an image (as of 4.2.2025):
+
+![Gold bar premiums](premiums.png)
