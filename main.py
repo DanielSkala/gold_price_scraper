@@ -54,7 +54,7 @@ async def extract_all_prices(gold_bars):
         return {weight: await task for weight, task in tasks.items()}
 
 
-def plot_graph(weights, premiums, sorted_indices):
+def plot_graph(weights, premiums, avg_premiums, sorted_indices):
     # Extract the top three lowest premiums.
     weights_top = [weights[i] for i in sorted_indices]
     premiums_top = [premiums[i] for i in sorted_indices]
@@ -67,6 +67,17 @@ def plot_graph(weights, premiums, sorted_indices):
         name="Premium (%)",
         line=dict(color="blue"),
         hovertemplate="Weight: %{x}g<br>Premium: %{y:.2f}%<extra></extra>",
+    )
+
+    # Create a trace for the average premiums with a 50% opacity
+    trace_avg = go.Scatter(
+        x=weights,
+        y=avg_premiums,
+        mode="lines",
+        name="Average Premium (%)",
+        line=dict(color="red"),
+        opacity=0.33,
+        hoverinfo="skip",
     )
 
     # Create a trace for text annotations.
@@ -102,7 +113,7 @@ def plot_graph(weights, premiums, sorted_indices):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
 
-    fig = go.Figure(data=[trace_line, trace_text, trace_low], layout=layout)
+    fig = go.Figure(data=[trace_line, trace_avg, trace_text, trace_low], layout=layout)
     fig.show()
 
 
@@ -123,7 +134,9 @@ def main():
     }
 
     gold_spot_price = get_gold_spot_price()
-    logger.info(f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz")
+    logger.info(
+        f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz"
+    )
     prices_dict = asyncio.run(extract_all_prices(gold_bars))
 
     weights, premiums = [], []
@@ -141,7 +154,25 @@ def main():
         return
 
     sorted_indices = sorted(range(len(premiums)), key=lambda i: premiums[i])[:3]
-    plot_graph(weights, premiums, sorted_indices)
+
+    average_premiums = calculate_average_premiums("gold_premiums.csv")
+
+    plot_graph(weights, premiums, average_premiums, sorted_indices)
+
+    # Open a csv file and append there the premiums (eg. 3.5) for each weight. If no premium is available, write "N/A".
+    with open("gold_premiums.csv", "a") as f:
+        f.write(
+            ", ".join([f"{premium:.2f}" if premium is not None else "N/A" for premium in premiums])
+            + "\n"
+        )
+
+
+def calculate_average_premiums(csv_file) -> list:
+    with open(csv_file, "r") as f:
+        lines = f.readlines()
+    premiums = [list(map(float, line.strip().split(","))) for line in lines]
+    averages = [sum(col) / len(col) for col in zip(*premiums)]
+    return averages
 
 
 if __name__ == "__main__":
