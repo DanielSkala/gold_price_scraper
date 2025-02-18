@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-TROY_OUNCE = 31.1034768
+TROY_OUNCE = 31.1034768  # To grams
 
 
 def get_gold_spot_price():
