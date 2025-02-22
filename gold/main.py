@@ -1,5 +1,8 @@
 import asyncio
+import csv
+import datetime
 import logging
+import math
 import re
 import time
 
@@ -24,7 +27,7 @@ def get_gold_spot_price():
         return gold_price_eur_per_ounce / TROY_OUNCE  # 1 troy ounce = 31.1 grams
     except Exception as e:
         logger.error(f"Failed to fetch gold spot price: {e}")
-        return 2730 / TROY_OUNCE  # Fallback price as of 4.3.2025
+        return None
 
 
 async def fetch_gold_price(url, session):
@@ -66,10 +69,11 @@ def plot_graph(weights, premiums, avg_premiums, sorted_indices):
         mode="lines+markers",
         name="Premium (%)",
         line=dict(color="blue"),
+        connectgaps=True,  # <-- Add this
         hovertemplate="Weight: %{x}g<br>Premium: %{y:.2f}%<extra></extra>",
     )
 
-    # Create a trace for the average premiums with a 50% opacity
+    # Create a trace for the average premiums.
     trace_avg = go.Scatter(
         x=weights,
         y=avg_premiums,
@@ -77,15 +81,16 @@ def plot_graph(weights, premiums, avg_premiums, sorted_indices):
         name="Average Premium (%)",
         line=dict(color="red"),
         opacity=0.33,
+        connectgaps=True,  # <-- Add this
         hoverinfo="skip",
     )
 
     # Create a trace for text annotations.
     trace_text = go.Scatter(
         x=weights,
-        y=[p + 0.5 for p in premiums],
+        y=[p + 0.5 if p is not None else math.nan for p in premiums],
         mode="text",
-        text=[f"{p:.2f}%" for p in premiums],
+        text=[f"{p:.2f}%" if p is not None else "N/A" for p in premiums],
         textposition="top center",
         showlegend=False,
     )
@@ -134,45 +139,69 @@ def main():
     }
 
     gold_spot_price = get_gold_spot_price()
-    logger.info(
-        f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz"
-    )
-    prices_dict = asyncio.run(extract_all_prices(gold_bars))
 
-    weights, premiums = [], []
-    for weight, price in prices_dict.items():
-        if price is None:
-            continue
-        gram_weight = float(re.search(r"[0-9]+\.?[0-9]*", weight).group())
-        premium = ((price / gram_weight) / gold_spot_price - 1) * 100
-        weights.append(gram_weight)
-        premiums.append(premium)
-        logger.info(f"{weight}: price = {price:.2f} EUR, premium = {premium:.2f}%")
-
-    if not weights:
-        logger.error("No valid prices extracted.")
+    if gold_spot_price is None:
         return
-
-    sorted_indices = sorted(range(len(premiums)), key=lambda i: premiums[i])[:3]
-
-    average_premiums = calculate_average_premiums("gold_premiums.csv")
-
-    plot_graph(weights, premiums, average_premiums, sorted_indices)
-
-    # Open a csv file and append there the premiums (eg. 3.5) for each weight. If no premium is available, write "N/A".
-    with open("gold_premiums.csv", "a") as f:
-        f.write(
-            ", ".join([f"{premium:.2f}" if premium is not None else "N/A" for premium in premiums])
-            + "\n"
+    else:
+        logger.info(
+            f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz"
         )
+        prices_dict = asyncio.run(extract_all_prices(gold_bars))
+
+        weights, premiums = [], []
+        for weight, price in prices_dict.items():
+            gram_weight = float(re.search(r"[0-9]+\.?[0-9]*", weight).group())
+            if price is None:
+                premium = None
+                logger.info(f"{weight}: price not available, premium = N/A")
+            else:
+                premium = ((price / gram_weight) / gold_spot_price - 1) * 100
+                logger.info(f"{weight}: price = {price:.2f} EUR, premium = {premium:.2f}%")
+            weights.append(gram_weight)
+            premiums.append(premium)
+
+        if not weights:
+            logger.error("No valid prices extracted.")
+            return
+
+        # Filter out indices with None values
+        valid_indices = [i for i, p in enumerate(premiums) if p is not None]
+        if valid_indices:
+            sorted_indices = sorted(valid_indices, key=lambda i: premiums[i])[:3]
+        else:
+            sorted_indices = []
+
+        average_premiums = calculate_average_premiums("gold_premiums.csv")
+
+        plot_graph(weights, premiums, average_premiums, sorted_indices)
+
+        # Open a csv file and append there the premiums (eg. 3.5) for each weight. If no premium is available, write "N/A".
+        with open("gold_premiums.csv", "a") as f:
+            # Use a conditional expression to write "N/A" if premium is None
+            line = ", ".join(
+                [f"{premium:.2f}" if premium is not None else "N/A" for premium in premiums]
+            )
+            # Append today's date as a string
+            line += ", " + str(datetime.date.today()) + "\n"
+            f.write(line)
 
 
 def calculate_average_premiums(csv_file) -> list:
-    with open(csv_file, "r") as f:
-        lines = f.readlines()
-    premiums = [list(map(float, line.strip().split(","))) for line in lines]
-    averages = [sum(col) / len(col) for col in zip(*premiums)]
-    return averages
+    def to_float(v):
+        try:
+            return float(v.strip())
+        except ValueError:
+            return None
+
+    with open(csv_file, newline="") as f:
+        # Read each row, and drop the last column (date)
+        rows = [[to_float(cell) for cell in row[:-1]] for row in csv.reader(f)]
+
+    # Transpose rows to columns and compute averages ignoring None values.
+    return [
+        sum(vals) / len(vals) if (vals := [x for x in col if x is not None]) else None
+        for col in zip(*rows)
+    ]
 
 
 if __name__ == "__main__":
