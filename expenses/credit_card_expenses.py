@@ -21,15 +21,16 @@ CATEGORIES = {
         "spar",
         "tesco",
         "pekaren",
-        "albert heijn"
+        "albert heijn",
     ],
     "eating out": [
+        "roxor",
+        "dunkin donuts",
+        "chokiki",
         "poseidon",
         "mcdonald",
-        'kfc',
-        "restauracia"
-        "kaviaren"
-        "ramen",
+        "kfc",
+        "restauracia" "kaviaren" "ramen",
         "bowlicheck",
         "soho",
         "starbucks",
@@ -47,7 +48,7 @@ CATEGORIES = {
         "fresh market",
         "noodle",
         "costa",
-        "fruitisimo"
+        "fruitisimo",
     ],
     "bolt": ["bolt", "taxi"],
     "car wash": ["mobydick", "pasadur"],
