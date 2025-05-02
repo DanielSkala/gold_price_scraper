@@ -2,7 +2,6 @@ import asyncio
 import csv
 import datetime
 import logging
-import math
 import re
 import time
 
@@ -57,135 +56,6 @@ async def extract_all_prices(gold_bars):
         return {weight: await task for weight, task in tasks.items()}
 
 
-def plot_graph(weights, premiums, avg_premiums, sorted_indices):
-    # Extract the top three lowest premiums.
-    weights_top = [weights[i] for i in sorted_indices]
-    premiums_top = [premiums[i] for i in sorted_indices]
-
-    # Create the main trace (line + markers).
-    trace_line = go.Scatter(
-        x=weights,
-        y=premiums,
-        mode="lines+markers",
-        name="Premium (%)",
-        line=dict(color="blue"),
-        connectgaps=True,  # <-- Add this
-        hovertemplate="Weight: %{x}g<br>Premium: %{y:.2f}%<extra></extra>",
-    )
-
-    # Create a trace for the average premiums.
-    trace_avg = go.Scatter(
-        x=weights,
-        y=avg_premiums,
-        mode="lines",
-        name="Average Premium (%)",
-        line=dict(color="red"),
-        opacity=0.33,
-        connectgaps=True,  # <-- Add this
-        hoverinfo="skip",
-    )
-
-    # Create a trace for text annotations.
-    trace_text = go.Scatter(
-        x=weights,
-        y=[p + 0.5 if p is not None else math.nan for p in premiums],
-        mode="text",
-        text=[f"{p:.2f}%" if p is not None else "N/A" for p in premiums],
-        textposition="top center",
-        showlegend=False,
-    )
-
-    # Create a trace to highlight the top 3 lowest premiums.
-    trace_low = go.Scatter(
-        x=weights_top,
-        y=premiums_top,
-        mode="markers",
-        marker=dict(color="red", size=12),
-        name="Lowest Premiums",
-        hovertemplate="Weight: %{x}g<br>Premium: %{y:.2f}%<extra></extra>",
-    )
-
-    # Add today's date to the title.
-    layout = go.Layout(
-        title=f"Gold Bar Premiums from zlataky.sk ({time.strftime('%d.%m.%Y')})",
-        xaxis=dict(
-            title="Gold Bar Weight (g)",
-            type="log",
-            tickvals=weights,
-            ticktext=[f"{w}g" for w in weights],
-        ),
-        yaxis=dict(title="Premium (%)"),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-
-    fig = go.Figure(data=[trace_line, trace_avg, trace_text, trace_low], layout=layout)
-    fig.show()
-
-
-def main():
-    # The urls are hardcoded because each gold bar has a slightly different url.
-    gold_bars = {
-        "1g": "https://zlataky.sk/1-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "2g": "https://zlataky.sk/2-g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
-        "5g": "https://zlataky.sk/5-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "10g": "https://zlataky.sk/10-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "20g": "https://zlataky.sk/20-g-argor-heraeus-sa-svycarsko-investicna-zlata-tehlicka",
-        "31.1g": "https://zlataky.sk/31-1g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
-        "50g": "https://zlataky.sk/50-g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
-        "100g": "https://zlataky.sk/100-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "250g": "https://zlataky.sk/250-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "500g": "https://zlataky.sk/500-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-        "1000g": "https://zlataky.sk/1000-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
-    }
-
-    gold_spot_price = get_gold_spot_price()
-
-    if gold_spot_price is None:
-        return
-    else:
-        logger.info(
-            f"Gold spot price: {gold_spot_price:.2f} EUR/g or {gold_spot_price * TROY_OUNCE:.2f} EUR/oz"
-        )
-        prices_dict = asyncio.run(extract_all_prices(gold_bars))
-
-        weights, premiums = [], []
-        for weight, price in prices_dict.items():
-            gram_weight = float(re.search(r"[0-9]+\.?[0-9]*", weight).group())
-            if price is None:
-                premium = None
-                logger.info(f"{weight}: price not available, premium = N/A")
-            else:
-                premium = ((price / gram_weight) / gold_spot_price - 1) * 100
-                logger.info(f"{weight}: price = {price:.2f} EUR, premium = {premium:.2f}%")
-            weights.append(gram_weight)
-            premiums.append(premium)
-
-        if not weights:
-            logger.error("No valid prices extracted.")
-            return
-
-        # Filter out indices with None values
-        valid_indices = [i for i, p in enumerate(premiums) if p is not None]
-        if valid_indices:
-            sorted_indices = sorted(valid_indices, key=lambda i: premiums[i])[:3]
-        else:
-            sorted_indices = []
-
-        average_premiums = calculate_average_premiums("gold_premiums.csv")
-
-        plot_graph(weights, premiums, average_premiums, sorted_indices)
-
-        # Open a csv file and append there the premiums (eg. 3.5) for each weight. If no premium is available, write "N/A".
-        with open("gold_premiums.csv", "a") as f:
-            # Use a conditional expression to write "N/A" if premium is None
-            line = ", ".join(
-                [f"{premium:.2f}" if premium is not None else "N/A" for premium in premiums]
-            )
-            # Append today's date as a string
-            line += ", " + str(datetime.date.today()) + "\n"
-            f.write(line)
-
-
 def calculate_average_premiums(csv_file) -> list:
     def to_float(v):
         try:
@@ -202,6 +72,167 @@ def calculate_average_premiums(csv_file) -> list:
         sum(vals) / len(vals) if (vals := [x for x in col if x is not None]) else None
         for col in zip(*rows)
     ]
+
+
+def main():
+    # Define the weights based on the gold_bars dictionary in main()
+    weights = [1, 2, 5, 10, 20, 31.1, 50, 100, 250, 500, 1000]
+
+    # Get current prices
+    gold_bars = {
+        "1g": "https://zlataky.sk/1-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "2g": "https://zlataky.sk/2-g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
+        "5g": "https://zlataky.sk/5-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "10g": "https://zlataky.sk/10-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "20g": "https://zlataky.sk/20-g-argor-heraeus-sa-svycarsko-investicna-zlata-tehlicka",
+        "31.1g": "https://zlataky.sk/31-1g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
+        "50g": "https://zlataky.sk/50-g-argor-heraeus-sa-svycarsko-investicni-zlaty-slitek",
+        "100g": "https://zlataky.sk/100-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "250g": "https://zlataky.sk/250-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "500g": "https://zlataky.sk/500-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+        "1000g": "https://zlataky.sk/1000-g-argor-heraeus-sa-svajciarsko-investicna-zlata-tehlicka",
+    }
+
+    gold_spot_price = get_gold_spot_price()
+    current_premiums = []
+
+    if gold_spot_price is not None:
+        prices_dict = asyncio.run(extract_all_prices(gold_bars))
+
+        for weight in sorted(
+            gold_bars.keys(), key=lambda w: float(re.search(r"[0-9]+\.?[0-9]*", w).group())
+        ):
+            price = prices_dict[weight]
+            gram_weight = float(re.search(r"[0-9]+\.?[0-9]*", weight).group())
+            if price is None:
+                premium = None
+            else:
+                premium = ((price / gram_weight) / gold_spot_price - 1) * 100
+            current_premiums.append(premium)
+    else:
+        current_premiums = [None] * len(weights)
+
+    # Read the CSV file
+    with open("gold_premiums.csv", newline="") as f:
+        reader = csv.reader(f)
+        rows = []
+        dates = []
+        for row in reader:
+            # Convert premium values to float, handling "N/A" values
+            premiums = []
+            for cell in row[:-1]:  # Exclude the date column
+                try:
+                    premiums.append(float(cell.strip()))
+                except ValueError:
+                    premiums.append(None)  # Use None for "N/A" values
+            rows.append(premiums)
+            dates.append(row[-1])  # Store the date
+
+    # Calculate average premiums
+    avg_premiums = calculate_average_premiums("gold_premiums.csv")
+
+    # Create a figure
+    fig = go.Figure()
+
+    # Add a trace for each row (date) with 50% transparency
+    for i, (premiums, date) in enumerate(zip(rows, dates)):
+        fig.add_trace(
+            go.Scatter(
+                x=weights,
+                y=premiums,
+                mode="lines+markers",
+                name=date,
+                line=dict(width=1),
+                opacity=0.15,
+                connectgaps=True,  # Connect gaps where data is missing
+                hovertemplate="Weight: %{x}<br>Premium: %{y:.2f}%<br>Date: "
+                + date
+                + "<extra></extra>",
+                showlegend=False,  # Hide from legend
+            )
+        )
+
+    # Add the average premium line with full visibility and make it stand out
+    fig.add_trace(
+        go.Scatter(
+            x=weights,
+            y=avg_premiums,
+            mode="lines+markers",
+            name="Average Premium (%)",
+            line=dict(color="red", width=2),
+            marker=dict(size=8),
+            connectgaps=True,
+            hovertemplate="Weight: %{x}<br>Average Premium: %{y:.2f}%<extra></extra>",
+            showlegend=True,  # Show in legend
+        )
+    )
+
+    # Add the current premium line
+    fig.add_trace(
+        go.Scatter(
+            x=weights,
+            y=current_premiums,
+            mode="lines+markers",
+            name="Current Premium (%)",
+            line=dict(color="blue", width=3),
+            marker=dict(size=8),
+            connectgaps=True,
+            hovertemplate="Weight: %{x}<br>Current Premium: %{y:.2f}%<extra></extra>",
+            showlegend=True,  # Show in legend
+        )
+    )
+
+    # Add the top three lowest premiums on current premium line
+    lowest_premiums = sorted(
+        [
+            (premium, weight)
+            for premium, weight in zip(current_premiums, weights)
+            if premium is not None
+        ]
+    )[:3]
+
+    for premium, weight in lowest_premiums:
+        fig.add_trace(
+            go.Scatter(
+                x=[weight],
+                y=[premium],
+                mode="markers",
+                name=f"Lowest Premium ({weight}g)",
+                marker=dict(color="#EFBF04", size=10),
+                hovertemplate=f"Weight: {weight}g<br>Premium: {premium:.2f}%<extra></extra>",
+            )
+        )
+
+    # Set up the layout
+    fig.update_layout(
+        title=f"All Gold Bar Premiums from zlataky.sk (as of {time.strftime('%d.%m.%Y')})",
+        xaxis=dict(
+            title="Gold Bar Weight (g)",
+            type="log",
+            tickvals=weights,
+            ticktext=[f"{w}g" for w in weights],
+        ),
+        yaxis=dict(
+            title="Premium (%)",
+            dtick=2.5,  # Set tick step to 2.5 for more dense y-axis
+        ),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+        ),  # Enable legend
+    )
+
+    # Show the figure
+    fig.show()
+
+    # Open a csv file and append there the premiums (eg. 3.5) for each weight. If no premium is available, write "N/A".
+    with open("gold_premiums.csv", "a") as f:
+        # Use a conditional expression to write "N/A" if premium is None
+        line = ", ".join(
+            [f"{premium:.2f}" if premium is not None else "N/A" for premium in current_premiums]
+        )
+        # Append today's date as a string
+        line += ", " + str(datetime.date.today()) + "\n"
+        f.write(line)
 
 
 if __name__ == "__main__":

@@ -21,10 +21,10 @@ I recommend adding a simple cronjob:
 ```
 This runs the script every day at 16:00 and logs the output to `/tmp/main.log`.
 
-Here is a sample output as an image (as of 4.2.2025):
+Here is a sample output as an image:
 
 ![Gold bar premiums](premiums.png)
-See? It's not true that the bigger the bar, the better the premium. Sometimes the 20g bar has a better premium than the 50 bar!
+The trend is clear, but the variance is quite high as well.
 
 ## 2. Expense analysis
 Analyzes expenses from TatraBanka, categorizes the items into a set of pre-defined categories (override recommended because everybody's expenses are different) and generates a table of total expenses per category per month with total averages.
