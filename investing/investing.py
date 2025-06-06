@@ -133,7 +133,7 @@ def plot_investment_growth(
 
     max_balance = max(balances)
     # Set Y-axis ticks every 100,000 EUR
-    y_ticks = np.arange(0, max_balance + 100_000, 100_000)
+    y_ticks = np.arange(0, max_balance + 10_000_000, 10_000_000)
     plt.yticks(y_ticks)
 
     plt.xticks(range(0, total_years + 1, 5))
@@ -144,9 +144,9 @@ def plot_investment_growth(
 
 def main() -> None:
     # Base parameters
-    base_monthly_investment = 3000
+    base_monthly_investment = 5000
     annual_interest_rate = 0.1  # Historical average return of S&P 500 is 11.2%, let's use 10%
-    total_years = 15
+    total_years = 45
 
     # Parameters for annual raise:
     inflation_rate = 0.02  # Default inflation rate of 2%

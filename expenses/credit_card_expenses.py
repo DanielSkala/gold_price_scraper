@@ -9,6 +9,8 @@ from tabulate import tabulate
 # Define keywords for each category in a case-insensitive manner
 CATEGORIES = {
     "groceries": [
+        "yeme",
+        "coop",
         "lidl",
         "billa",
         "malina",
@@ -24,6 +26,10 @@ CATEGORIES = {
         "albert heijn",
     ],
     "eating out": [
+        "bowls",
+        "gelato",
+        "pollito",
+        "kebab",
         "roxor",
         "dunkin donuts",
         "chokiki",
@@ -52,7 +58,7 @@ CATEGORIES = {
     ],
     "bolt": ["bolt", "taxi"],
     "car wash": ["mobydick", "pasadur"],
-    "gas stations": ["orlen", "slovnaft", "omv", "shell"],
+    "gas stations": ["orlen", "slovnaft", "omv", "shell", "cerp. stanica"],
     "nabytok": ["ikea", "hornbach", "jysk", "mobelix", "decathlon", "bauhaus"],
     "travel": [
         "flixbus",
