@@ -57,11 +57,13 @@ CATEGORIES = {
         "noodle",
         "costa",
         "fruitisimo",
+        "restaurant",
+        "donuteria"
     ],
     "bolt": ["bolt", "taxi"],
     "car wash": ["mobydick", "pasadur"],
     "gas stations": ["orlen", "slovnaft", "omv", "shell", "cerp. stanica"],
-    "nabytok": ["ikea", "hornbach", "jysk", "mobelix", "decathlon", "bauhaus"],
+    "nabytok": ["ikea", "hornbach", "jysk", "mobelix", "bauhaus"],
     "travel": [
         "flixbus",
         "ryanair",
@@ -69,6 +71,8 @@ CATEGORIES = {
         "booking",
         "hotels.com",
     ],
+    "parking": ["parkscheinautomat", "parkovis", "parkovanie", "parking", "easypark"],
+    "oil partner": ["oil"]
 }
 
 # We may want a fixed order for categories in the final table
@@ -78,6 +82,9 @@ CATEGORY_ORDER = [
     "bolt",
     "car wash",
     "gas stations",
+    "parking",
+    "nabytok",
+    "oil partner",
     "other",  # We'll add "other" explicitly
 ]
 
@@ -146,6 +153,37 @@ def parse_expenses_from_csv(csv_file: str):
     return expenses
 
 
+def compute_last_n_month_averages(monthly_sums, category_order, n):
+    """
+    Compute per-category and overall averages across the most recent n months
+    in monthly_sums. Returns (averages_dict, selected_months_list).
+
+    - monthly_sums: dict[str -> dict[str -> float]]
+        e.g. { "2024-05": {"groceries": 123.0, "eating out": 45.0, ...}, ... }
+    - category_order: list[str]
+        Categories to include/print and to sum into "Monthly Total".
+    - n: int
+        Number of most recent months to average over. Clamped to [1, len(all_months)].
+    """
+    all_months = sorted(monthly_sums.keys())
+    if not all_months:
+        return ({**{c: 0.0 for c in category_order}, "Monthly Total": 0.0}, [])
+
+    n = max(1, min(n, len(all_months)))
+    selected_months = all_months[-n:]
+
+    # Per-category averages over selected months
+    avg = {}
+    for cat in category_order:
+        cat_sum = sum(monthly_sums[m].get(cat, 0.0) for m in selected_months)
+        avg[cat] = cat_sum / n
+
+    # Overall monthly total average (only categories in category_order)
+    avg["Monthly Total"] = sum(avg[cat] for cat in category_order)
+
+    return avg, selected_months
+
+
 def main(input_directory="./expense_reports"):
     """
     1. Finds all CSV files in the directory.
@@ -190,9 +228,18 @@ def main(input_directory="./expense_reports"):
     averages["Monthly Total"] = sum(float(row[-1]) for row in table_data) / len(all_months)
 
     table_data.append(
-        ["Average"]
+        ["Average total"]
         + [f"{averages[cat]:.2f}" for cat in CATEGORY_ORDER]
         + [f"{averages['Monthly Total']:.2f}"]
+    )
+
+    LAST_N = 3
+    last_n_avg, used_months = compute_last_n_month_averages(monthly_sums, CATEGORY_ORDER, LAST_N)
+
+    table_data.append(
+        [f"Average (last {len(used_months)} months)"]
+        + [f"{last_n_avg[cat]:.2f}" for cat in CATEGORY_ORDER]
+        + [f"{last_n_avg['Monthly Total']:.2f}"]
     )
 
     print("\n=== Detailed Transactions ===\n")
