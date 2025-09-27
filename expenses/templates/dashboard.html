@@ -556,17 +556,27 @@
                     <i class="fas fa-calendar-day"></i> Monthly Details
                 </button>
                 <select id="monthSelector" style="
-                    padding: 8px 12px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-radius: 20px;
-                    background: rgba(255,255,255,0.2);
-                    color: white;
+                    padding: 12px 24px 12px 16px;
+                    border: 2px solid rgba(255,255,255,0.4);
+                    border-radius: 25px;
+                    background: rgba(255,255,255,0.95);
+                    color: #667eea;
                     font-weight: 600;
                     cursor: pointer;
-                    font-size: 0.9rem;
-                    backdrop-filter: blur(10px);
+                    font-size: 1rem;
+                    backdrop-filter: blur(20px);
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+                    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    appearance: none;
+                    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDFMNiA2TDExIDEiIHN0cm9rZT0iIzY2N2VlYSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+');
+                    background-repeat: no-repeat;
+                    background-position: right 16px center;
+                    background-size: 12px;
+                    min-width: 200px;
                     display: none;
-                " onchange="handleMonthChange()">
+                " onchange="handleMonthChange()"
+                   onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.boxShadow='0 12px 35px rgba(102, 126, 234, 0.2)';"
+                   onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.1)';">
                     <!-- Options will be populated dynamically -->
                 </select>
             </div>
@@ -688,6 +698,8 @@
         let selectedMonth = null;
         let sortColumn = 'date';
         let sortDirection = 'desc';
+        let transactionsDisplayed = 50; // Start with 50 transactions
+        let currentFilteredTransactions = null;
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -774,6 +786,9 @@
             // Show selected view
             document.getElementById(view + 'View').classList.add('active');
             currentView = view;
+
+            // Reset transaction display count when switching views
+            transactionsDisplayed = 50;
 
             // Re-render stats for the new view
             renderStats();
@@ -1333,6 +1348,9 @@
                 sortDirection = 'desc';
             }
 
+            // Reset display count when sorting changes
+            transactionsDisplayed = 50;
+
             renderTransactionsTable();
             if (currentView === 'monthly') {
                 renderMonthlyTransactionsTable();
@@ -1355,6 +1373,9 @@
                 const baseData = filteredTransactions || transactions;
                 const sortedData = sortTransactions(baseData, sortColumn, sortDirection);
 
+                // Store current filtered data for "load more" functionality
+                currentFilteredTransactions = sortedData;
+
                 if (!sortedData || sortedData.length === 0) {
                     document.getElementById('transactionsTable').innerHTML = `
                         <div style="text-align: center; padding: 50px; color: #718096;">
@@ -1364,8 +1385,9 @@
                     return;
                 }
 
-            // Just show recent transactions (limit to 50 most recent)
-            const transactionsToShow = sortedData.slice(0, 50);
+            // Show transactions up to the current display limit
+            const transactionsToShow = sortedData.slice(0, transactionsDisplayed);
+            const hasMoreTransactions = sortedData.length > transactionsDisplayed;
 
             const getSortArrow = (column) => {
                 if (sortColumn !== column) return '';
@@ -1375,7 +1397,7 @@
             const tableHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="color: #718096; font-size: 0.9rem;">
-                        Showing ${Math.min(transactionsToShow.length, 50)} most recent transactions
+                        Showing ${transactionsToShow.length} of ${sortedData.length} transactions
                     </div>
                 </div>
                 <table class="transaction-table">
@@ -1411,6 +1433,24 @@
                         `).join('')}
                     </tbody>
                 </table>
+                ${hasMoreTransactions ? `
+                    <div style="text-align: center; padding: 20px;">
+                        <button onclick="loadMoreTransactions()" style="
+                            padding: 12px 24px;
+                            border: 2px solid #667eea;
+                            border-radius: 25px;
+                            background: white;
+                            color: #667eea;
+                            cursor: pointer;
+                            font-weight: 600;
+                            font-size: 1rem;
+                            transition: all 0.3s ease;
+                        " onmouseover="this.style.background='#667eea'; this.style.color='white';"
+                           onmouseout="this.style.background='white'; this.style.color='#667eea';">
+                            <i class="fas fa-plus"></i> Load More Transactions
+                        </button>
+                    </div>
+                ` : ''}
             `;
 
             document.getElementById('transactionsTable').innerHTML = tableHTML;
@@ -1424,6 +1464,17 @@
             }
         }
 
+        function loadMoreTransactions() {
+            // Increase the number of displayed transactions by 50
+            transactionsDisplayed += 50;
+
+            // Re-render the table with current filtered data
+            if (currentFilteredTransactions) {
+                renderTransactionsTable(currentFilteredTransactions === transactions ? null : currentFilteredTransactions);
+            } else {
+                renderTransactionsTable();
+            }
+        }
 
         function toggleChart(type) {
             currentChartType = type;
@@ -1499,6 +1550,9 @@
         // Search functionality for overview
         document.getElementById('searchBox').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
+
+            // Reset display count when searching
+            transactionsDisplayed = 50;
 
             if (!searchTerm) {
                 renderTransactionsTable();
