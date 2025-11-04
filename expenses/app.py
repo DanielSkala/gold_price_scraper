@@ -72,6 +72,42 @@ def category_totals():
 
     return jsonify(totals)
 
+@app.route('/api/category-averages')
+def category_averages():
+    monthly_sums, _ = get_monthly_data()
+
+    if not monthly_sums:
+        return jsonify({})
+
+    all_months = sorted(monthly_sums.keys())
+    num_months = len(all_months)
+
+    # Calculate overall averages
+    overall_averages = {}
+    for category in CATEGORY_ORDER:
+        total = sum(
+            monthly_sums[month].get(category, 0.0)
+            for month in all_months
+        )
+        overall_averages[category] = total / num_months if num_months > 0 else 0
+
+    # Calculate last 3 months averages
+    last_3_months = all_months[-3:] if len(all_months) >= 3 else all_months
+    last_3_averages = {}
+    for category in CATEGORY_ORDER:
+        total = sum(
+            monthly_sums[month].get(category, 0.0)
+            for month in last_3_months
+        )
+        last_3_averages[category] = total / len(last_3_months) if last_3_months else 0
+
+    return jsonify({
+        'overall': overall_averages,
+        'last_3_months': last_3_averages,
+        'num_months': num_months,
+        'last_3_count': len(last_3_months)
+    })
+
 @app.route('/api/transactions')
 def transactions():
     all_expenses = get_expenses_data()

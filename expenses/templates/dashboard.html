@@ -607,9 +607,14 @@
                 <div class="chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Category Distribution</h3>
-                        <div style="font-size: 0.9rem; color: #718096;">Click slices to view details</div>
+                        <div class="chart-filters">
+                            <button class="filter-btn active" onclick="toggleCategoryView('total')">Total</button>
+                            <button class="filter-btn" onclick="toggleCategoryView('average')">Average</button>
+                            <button class="filter-btn" onclick="toggleCategoryView('last_3')">Last 3 Months</button>
+                        </div>
                     </div>
-                    <div id="categoryChart" style="height: 450px;"></div>
+                    <div style="font-size: 0.85rem; color: #718096; text-align: center; margin-bottom: 10px;" id="categorySubtitle">Click slices to view details</div>
+                    <div id="categoryChart" style="height: 380px;"></div>
                 </div>
             </div>
 
@@ -690,8 +695,10 @@
     <script>
         let currentView = 'overview';
         let currentChartType = 'line';
+        let currentCategoryView = 'total'; // 'total', 'average', or 'last_3'
         let monthlyData = null;
         let categoryTotals = null;
+        let categoryAverages = null;
         let transactions = null;
         let trends = null;
         let currentMonthDetails = null;
@@ -710,12 +717,14 @@
             Promise.all([
                 fetch('/api/monthly-data').then(r => r.json()),
                 fetch('/api/category-totals').then(r => r.json()),
+                fetch('/api/category-averages').then(r => r.json()),
                 fetch('/api/transactions').then(r => r.json()),
                 fetch('/api/trends').then(r => r.json()),
                 fetch('/api/current-month-details').then(r => r.json())
-            ]).then(([monthly, totals, trans, trendData, monthlyDetails]) => {
+            ]).then(([monthly, totals, averages, trans, trendData, monthlyDetails]) => {
                 monthlyData = monthly;
                 categoryTotals = totals;
+                categoryAverages = averages;
                 transactions = trans;
                 trends = trendData;
                 currentMonthDetails = monthlyDetails;
@@ -997,7 +1006,30 @@
         }
 
         function renderCategoryChart() {
-            const sortedCategories = Object.entries(categoryTotals)
+            // Determine which data to use based on current view
+            let dataToUse;
+            let subtitleText;
+            let centerText;
+
+            if (currentCategoryView === 'total') {
+                dataToUse = categoryTotals;
+                subtitleText = 'Total spending across all time';
+                centerText = `€${Object.values(categoryTotals).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:14px;">Total</span>`;
+            } else if (currentCategoryView === 'average') {
+                dataToUse = categoryAverages.overall;
+                subtitleText = `Average per month (${categoryAverages.num_months} months)`;
+                centerText = `€${Object.values(categoryAverages.overall).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:14px;">Avg/Month</span>`;
+            } else { // last_3
+                dataToUse = categoryAverages.last_3_months;
+                subtitleText = `Average of last ${categoryAverages.last_3_count} months`;
+                centerText = `€${Object.values(categoryAverages.last_3_months).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:14px;">Avg/Month</span>`;
+            }
+
+            // Update subtitle
+            document.getElementById('categorySubtitle').textContent = subtitleText;
+
+            const sortedCategories = Object.entries(dataToUse)
+                .filter(([_, val]) => val > 0)
                 .sort((a, b) => b[1] - a[1]);
 
             const trace = {
@@ -1011,7 +1043,7 @@
                 },
                 textinfo: 'label+percent',
                 textposition: 'outside',
-                textfont: { size: 12, color: '#2d3748' },
+                textfont: { size: 11, color: '#2d3748' },
                 hovertemplate: '<b>%{label}</b><br>€%{value:.2f}<br>%{percent}<br><i>Click to view details</i><extra></extra>',
                 hoverlabel: { bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#667eea' }
             };
@@ -1019,12 +1051,12 @@
             const layout = {
                 title: '',
                 font: { family: 'Inter, sans-serif', color: '#2d3748' },
-                margin: { t: 20, r: 20, b: 20, l: 20 },
+                margin: { t: 10, r: 10, b: 10, l: 10 },
                 showlegend: false,
                 plot_bgcolor: 'rgba(255,255,255,0)',
                 paper_bgcolor: 'rgba(255,255,255,0)',
                 annotations: [{
-                    text: `€${Object.values(categoryTotals).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:14px;">Total</span>`,
+                    text: centerText,
                     x: 0.5, y: 0.5,
                     font: { size: 20, color: '#2d3748' },
                     showarrow: false
@@ -1043,6 +1075,22 @@
                 const category = sortedCategories[point.pointNumber][0];
                 showCategoryDetails(category);
             });
+        }
+
+        function toggleCategoryView(view) {
+            currentCategoryView = view;
+
+            // Update button states
+            const buttons = document.querySelectorAll('.chart-container .chart-filters .filter-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('pulse-on-click');
+                setTimeout(() => btn.classList.remove('pulse-on-click'), 300);
+            });
+            event.target.classList.add('active');
+
+            // Re-render the chart
+            renderCategoryChart();
         }
 
         function renderMonthlyDetailCharts() {
