@@ -58,10 +58,11 @@ CATEGORIES = {
         "costa",
         "fruitisimo",
         "restaurant",
-        "donuteria"
+        "donuteria",
+        "srdcovka"
     ],
     "bolt": ["bolt", "taxi"],
-    "car wash": ["mobydick", "pasadur"],
+    "car wash": ["mobydick", "pasadur", "lkq"],
     "gas stations": ["orlen", "slovnaft", "omv", "shell", "cerp. stanica"],
     "nabytok": ["ikea", "hornbach", "jysk", "mobelix", "bauhaus"],
     "travel": [
