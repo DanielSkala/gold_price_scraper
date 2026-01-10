@@ -59,7 +59,10 @@ CATEGORIES = {
         "fruitisimo",
         "restaurant",
         "donuteria",
-        "srdcovka"
+        "srdcovka",
+        "bombay",
+        "starohajska",
+        "martinus"
     ],
     "bolt": ["bolt", "taxi"],
     "car wash": ["mobydick", "pasadur", "lkq"],
