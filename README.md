@@ -1,40 +1,103 @@
-# Gold Price Scraper
-This repo started as a simple gold price scraper, that calculates the premiums of gold bars given the current price of gold. However, it has since evolved to include other scripts like expense analysis from expense reports from TatraBanka, or investment projections.
+# Personal Finance & Market Intelligence Toolkit
 
-### Setup (mac)
-1. `pip install poetry`
-2. `poetry install --no-root`
+A collection of personal finance and market analysis tools.
 
+## Setup
 
-## 1. Gold bar premiums
-Scrapes zlataky.sk and plots a graph of the premiums per gold bar size given the current price of gold. A.k.a what should I buy?
-The bars are only from Argor Heraeus because I like those for no reason.
-
-### How to run
-Run the `main.py` script. No env vars or api keys are needed.
-
-Every time the script is executed, it appends the results to a csv file called `gold_premiums.csv`. From these cumulative data, an average gold premiums are calculated (so you can see if the current price is above or below the average).
-
-I recommend adding a simple cronjob:
 ```bash
-00 16 * * * cd /Users/daskala/Desktop/gold_price_scraper/gold && /Users/daskala/Desktop/gold_price_scraper/.venv/bin/python main.py >> /tmp/main.log 2>&1
+pip install poetry
+poetry install --no-root
 ```
-This runs the script every day at 16:00 and logs the output to `/tmp/main.log`.
 
-Here is a sample output as an image:
+---
 
-![Gold bar premiums](premiums.png)
-The trend is clear, but the variance is quite high as well.
+## Projects
 
-## 2. Expense analysis
-Analyzes expenses from TatraBanka, categorizes the items into a set of pre-defined categories (override recommended because everybody's expenses are different) and generates a table of total expenses per category per month with total averages.
-To get the data:
-1. Open your TatraBanka app or internet banking
-2. Click on your card you want to analyse
-3. Click on "Pohyby"
-4. Top right click the settings icon and select "Exportovať" (as a csv)
+| Project | Description | Port | Docs |
+|---------|-------------|------|------|
+| [`gold/`](gold/) | Gold bar premium tracker (zlataky.sk) | — | [README](gold/README.md) |
+| [`expenses/`](expenses/) | Credit card expense analytics + dashboard | 5001 | [README](expenses/README.md) |
+| [`investing/`](investing/) | S&P 500 investment growth simulator | — | [README](investing/README.md) |
+| [`tatra_banka_interest_rates/`](tatra_banka_interest_rates/) | Mortgage rate scraper (Selenium) | — | [README](tatra_banka_interest_rates/README.md) |
+| [`openinsider/`](openinsider/) | SEC insider trading analytics + dashboard | 5002 | [README](openinsider/README.md) |
 
-Put all your exports into `expenses/expense_reports`, run the `credit_card_expenses.py` script and be shocked by how much you spend on useless stuff.
+## Repository Structure
 
-## 3. Investment projections
-After the initial shock from your expenses analysis, you might want to see how much you could have saved if you invested that money instead. The `investing.py` script calculates how much you would have made if you invested that money into a stock market index fund (S&P 500) instead. All parameters can be set in `main.py`.
+```
+.
+├── gold/                          # Gold bar premium scraper
+│   ├── main.py                    #   Scraper + Plotly chart
+│   └── gold_premiums.csv          #   Historical data
+│
+├── expenses/                      # Expense analytics
+│   ├── app.py                     #   Flask dashboard (port 5001)
+│   ├── credit_card_expenses.py    #   CSV parser + categorizer
+│   ├── templates/dashboard.html   #   Interactive dashboard
+│   └── expense_reports/           #   TatraBanka CSV exports
+│
+├── investing/                     # Investment projections
+│   └── investing.py               #   S&P 500 growth simulator
+│
+├── tatra_banka_interest_rates/    # Mortgage rates
+│   ├── scrape_tatrabanka_mortgage.py  # Selenium scraper
+│   └── run_scraper.sh             #   Cron wrapper
+│
+├── openinsider/                   # Insider trading intelligence
+│   ├── config.py                  #   Configuration + env vars
+│   ├── db.py                      #   SQLite schema (7 tables)
+│   ├── pipeline.py                #   End-to-end orchestrator
+│   ├── ingestion/                 #   Data acquisition
+│   │   ├── scraper.py             #     OpenInsider HTML scraper
+│   │   └── ingest.py              #     Scrape orchestrator
+│   ├── analysis/                  #   Signal processing
+│   │   ├── enrichment.py          #     yfinance market data
+│   │   ├── signals.py             #     9-factor scoring (0-100)
+│   │   ├── clusters.py            #     Cluster detection
+│   │   └── scoring.py             #     Batch scoring
+│   ├── integrations/              #   External services
+│   │   ├── llm_analyst.py         #     OpenAI GPT analysis
+│   │   └── notifications.py       #     Email alerts
+│   ├── research/                  #   Backtesting
+│   │   ├── backtest.py            #     Score calibration + returns
+│   │   └── watchlist.py           #     Ticker watchlist
+│   ├── web/                       #   Flask dashboard (port 5002)
+│   │   ├── app.py                 #     Routes + API
+│   │   └── templates/             #     HTML pages
+│   ├── scripts/                   #   Shell wrappers
+│   └── data/                      #   SQLite database (gitignored)
+│
+├── pyproject.toml                 # Poetry dependencies
+└── .gitignore
+```
+
+## Quick Start per Project
+
+```bash
+# Gold premiums
+python gold/main.py
+
+# Expense dashboard
+python expenses/app.py                    # http://localhost:5001
+
+# Investment projections
+python investing/investing.py
+
+# Mortgage rates
+python tatra_banka_interest_rates/scrape_tatrabanka_mortgage.py
+
+# OpenInsider — scrape + score + dashboard
+python -m openinsider.ingest              # Scrape filings
+python -m openinsider.pipeline            # Full pipeline (ingest+enrich+score+cluster)
+python -m openinsider.web.app              # http://localhost:5002
+```
+
+## Environment Variables (OpenInsider only)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | No | GPT-4o analysis on high-scoring filings |
+| `SMTP_HOST` | No | Email alerts (e.g., `smtp.gmail.com`) |
+| `SMTP_PORT` | No | Default: `587` |
+| `SMTP_USER` | No | SMTP username |
+| `SMTP_PASSWORD` | No | SMTP password ([Gmail App Password](https://myaccount.google.com/apppasswords)) |
+| `ALERT_EMAIL_TO` | No | Alert recipient email |

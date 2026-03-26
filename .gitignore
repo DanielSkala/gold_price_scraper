@@ -1,3 +1,9 @@
+# OS files
+.DS_Store
+
+# IDE
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -60,6 +66,14 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+openinsider/data/*.db
+openinsider/data/*.db-shm
+openinsider/data/*.db-wal
+openinsider/data/*.log
+openinsider/.claude/
+
+# Personal financial data (sensitive)
+expenses/expense_reports/*.csv
 
 # Flask stuff:
 instance/

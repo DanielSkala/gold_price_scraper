@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ insider_name }} - OpenInsider Intelligence</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .animated-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            background: linear-gradient(-45deg, #065f46, #059669, #047857, #10b981, #065f46, #034e3b);
+            background-size: 400% 400%;
+            animation: gradientShift 30s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .back-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: white; }
+
+        .insider-header {
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .insider-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .insider-header p {
+            opacity: 0.9;
+            margin-top: 5px;
+            font-size: 1.1rem;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .profile-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            backdrop-filter: blur(20px);
+            transition: transform 0.3s;
+        }
+
+        .profile-card:hover { transform: translateY(-3px); }
+
+        .profile-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .profile-card .value { font-size: 1.8rem; font-weight: 700; color: #2d3748; }
+        .profile-card .label { color: #718096; font-size: 0.85rem; margin-top: 4px; }
+
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            backdrop-filter: blur(20px);
+            margin-bottom: 20px;
+        }
+
+        .card-title { font-size: 1.3rem; font-weight: 700; color: #2d3748; margin-bottom: 20px; }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .data-table th { background: #f7fafc; font-weight: 700; color: #4a5568; font-size: 0.85rem; text-transform: uppercase; }
+        .data-table tbody tr { transition: background 0.2s; cursor: pointer; }
+        .data-table tbody tr:hover { background: #f0fdf4; }
+
+        .score-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; display: inline-block; }
+        .score-high { background: #d1fae5; color: #065f46; }
+        .score-mid { background: #fef3c7; color: #92400e; }
+        .score-low { background: #fecaca; color: #991b1b; }
+        .type-buy { color: #059669; font-weight: 700; }
+        .type-sell { color: #dc2626; font-weight: 700; }
+
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in { animation: fadeInUp 0.5s ease; }
+
+        @media (max-width: 768px) {
+            .insider-header h1 { font-size: 1.8rem; }
+            .profile-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg"></div>
+    <div class="container">
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+
+        <div class="insider-header">
+            <h1><i class="fas fa-user-tie" style="margin-right:10px;"></i> {{ insider_name }}</h1>
+            <p id="insiderSubtitle"></p>
+        </div>
+
+        <div class="profile-grid" id="profileGrid"></div>
+
+        <div class="card fade-in">
+            <div class="card-title"><i class="fas fa-chart-scatter" style="color:#059669; margin-right:8px;"></i>Trade Timeline</div>
+            <div id="timelineChart" style="height: 400px;"></div>
+        </div>
+
+        <div class="card fade-in">
+            <div class="card-title"><i class="fas fa-history" style="color:#059669; margin-right:8px;"></i>Trade History</div>
+            <div id="historyTable"></div>
+        </div>
+    </div>
+
+    <script>
+        const INSIDER = {{ insider_name | tojson }};
+
+        function scoreBadge(score) {
+            if (score === null || score === undefined) return '<span class="score-badge score-low">N/A</span>';
+            const cls = score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low';
+            return `<span class="score-badge ${cls}">${Math.round(score)}</span>`;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            Promise.all([
+                fetch(`/api/insider/${encodeURIComponent(INSIDER)}/profile`).then(r => r.json()),
+                fetch(`/api/insider/${encodeURIComponent(INSIDER)}/history`).then(r => r.json())
+            ]).then(([profile, history]) => {
+                renderProfile(profile);
+                renderTimeline(history.filings || []);
+                renderHistory(history.filings || []);
+            }).catch(err => {
+                console.error('Error loading insider data:', err);
+            });
+        });
+
+        function renderProfile(p) {
+            if (!p || !p.name) {
+                document.getElementById('profileGrid').innerHTML = '<p style="color:rgba(255,255,255,0.7); grid-column:1/-1; text-align:center;">No profile data available.</p>';
+                return;
+            }
+
+            const totalTrades = (p.total_buys || 0) + (p.total_sells || 0) + (p.total_trades || 0);
+            const buyRatio = totalTrades > 0 ? ((p.total_buys || 0) / totalTrades * 100).toFixed(0) : 'N/A';
+
+            if (p.first_seen && p.last_seen) {
+                document.getElementById('insiderSubtitle').textContent = `Active: ${p.first_seen} to ${p.last_seen}`;
+            }
+
+            const cards = [
+                { icon: '<i class="fas fa-crosshairs" style="color:#059669;"></i>', value: p.quality_score ? Math.round(p.quality_score) : 'N/A', label: 'Quality Score' },
+                { icon: '<i class="fas fa-percentage" style="color:#047857;"></i>', value: p.avg_return_3m ? p.avg_return_3m.toFixed(1) + '%' : 'N/A', label: 'Avg Return (3M)' },
+                { icon: '<i class="fas fa-balance-scale" style="color:#10b981;"></i>', value: buyRatio + '%', label: 'Buy Ratio' },
+                { icon: '<i class="fas fa-hashtag" style="color:#065f46;"></i>', value: totalTrades || (p.total_buys || 0) + (p.total_sells || 0), label: 'Total Trades' },
+                { icon: '<i class="fas fa-arrow-trend-up" style="color:#059669;"></i>', value: '$' + (p.total_buy_value ? Number(p.total_buy_value).toLocaleString() : '0'), label: 'Total Buys' },
+                { icon: '<i class="fas fa-arrow-trend-down" style="color:#dc2626;"></i>', value: '$' + (p.total_sell_value ? Number(p.total_sell_value).toLocaleString() : '0'), label: 'Total Sells' }
+            ];
+
+            document.getElementById('profileGrid').innerHTML = cards.map(c => `
+                <div class="profile-card">
+                    <div class="icon">${c.icon}</div>
+                    <div class="value">${c.value}</div>
+                    <div class="label">${c.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderTimeline(filings) {
+            if (!filings || filings.length === 0) {
+                document.getElementById('timelineChart').innerHTML = '<p style="color:#718096; text-align:center; padding:60px;">No trades to display.</p>';
+                return;
+            }
+
+            const buys = filings.filter(f => f.trade_type === 'P');
+            const sells = filings.filter(f => f.trade_type === 'S');
+            const traces = [];
+
+            if (buys.length > 0) {
+                traces.push({
+                    x: buys.map(f => f.filing_date),
+                    y: buys.map(f => f.value || 0),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Purchases',
+                    marker: {
+                        color: '#059669',
+                        size: buys.map(f => Math.min(25, Math.max(8, Math.sqrt(f.value || 0) / 50))),
+                        symbol: 'triangle-up',
+                        line: { color: 'white', width: 1 }
+                    },
+                    text: buys.map(f => `${f.ticker}<br>$${(f.value || 0).toLocaleString()}<br>Score: ${f.deterministic_score || 'N/A'}`),
+                    hovertemplate: '%{text}<extra>BUY</extra>'
+                });
+            }
+
+            if (sells.length > 0) {
+                traces.push({
+                    x: sells.map(f => f.filing_date),
+                    y: sells.map(f => f.value || 0),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Sales',
+                    marker: {
+                        color: '#dc2626',
+                        size: sells.map(f => Math.min(25, Math.max(8, Math.sqrt(f.value || 0) / 50))),
+                        symbol: 'triangle-down',
+                        line: { color: 'white', width: 1 }
+                    },
+                    text: sells.map(f => `${f.ticker}<br>$${(f.value || 0).toLocaleString()}<br>Score: ${f.deterministic_score || 'N/A'}`),
+                    hovertemplate: '%{text}<extra>SELL</extra>'
+                });
+            }
+
+            Plotly.newPlot('timelineChart', traces, {
+                xaxis: { title: 'Date' },
+                yaxis: { title: 'Trade Value ($)', type: 'log' },
+                plot_bgcolor: 'rgba(255,255,255,0.8)',
+                paper_bgcolor: 'rgba(255,255,255,0)',
+                font: { family: 'Inter, sans-serif', color: '#2d3748' },
+                margin: { t: 20, r: 20, b: 50, l: 70 },
+                hovermode: 'closest',
+                legend: { orientation: 'h', y: -0.15 }
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderHistory(filings) {
+            if (!filings || filings.length === 0) {
+                document.getElementById('historyTable').innerHTML = '<p style="color:#718096; text-align:center; padding:20px;">No trade history found.</p>';
+                return;
+            }
+
+            document.getElementById('historyTable').innerHTML = `
+                <table class="data-table">
+                    <thead><tr>
+                        <th>Date</th><th>Ticker</th><th>Company</th><th>Type</th>
+                        <th>Price</th><th>Value</th><th>Score</th>
+                    </tr></thead>
+                    <tbody>
+                        ${filings.map(f => `
+                            <tr onclick="window.location='/company/${f.ticker}'">
+                                <td>${f.filing_date}</td>
+                                <td style="color:#059669; font-weight:700;">${f.ticker}</td>
+                                <td style="font-size:0.9rem;">${f.company_name || '-'}</td>
+                                <td class="${f.trade_type === 'P' ? 'type-buy' : 'type-sell'}">${f.trade_type === 'P' ? 'BUY' : 'SELL'}</td>
+                                <td>$${f.price || '-'}</td>
+                                <td style="font-weight:600;">$${f.value ? Number(f.value).toLocaleString() : '0'}</td>
+                                <td>${scoreBadge(f.deterministic_score)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    </script>
+</body>
+</html>

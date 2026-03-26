@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenInsider Intelligence</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        /* Top bar */
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        }
+
+        .topbar-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .topbar-title span { color: #34d399; }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-box {
+            padding: 8px 16px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #1e293b;
+            color: white;
+            font-size: 0.85rem;
+            width: 260px;
+            transition: border-color 0.2s;
+        }
+        .search-box::placeholder { color: #64748b; }
+        .search-box:focus { outline: none; border-color: #34d399; }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 350px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            z-index: 200;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            color: #1e293b;
+        }
+        .search-results.open { display: block; }
+        .search-result-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+        }
+        .search-result-item:hover { background: #f0fdf4; }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #34d399;
+            display: inline-block;
+        }
+        .status-dot.warn { background: #fbbf24; }
+        .status-dot.err { background: #f87171; }
+
+        .status-text { font-size: 0.8rem; color: #94a3b8; }
+
+        /* Layout */
+        .main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 28px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .nav-tab {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-tab.active { background: #0f172a; color: white; }
+        .nav-tab:hover:not(.active) { background: #f1f5f9; color: #1e293b; }
+
+        /* Summary strip */
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .summary-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .summary-number { font-size: 1.6rem; font-weight: 800; color: #0f172a; }
+        .summary-label { font-size: 0.78rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        /* Tab content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Signal cards - the main readable format */
+        .signal-card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-left: 4px solid #e2e8f0;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .signal-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+
+        .signal-card.strength-high { border-left-color: #059669; }
+        .signal-card.strength-mid { border-left-color: #f59e0b; }
+        .signal-card.strength-low { border-left-color: #94a3b8; }
+
+        .signal-headline {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .signal-detail {
+            font-size: 0.92rem;
+            color: #475569;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .signal-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .meta-tag {
+            font-size: 0.78rem;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .tag-buy { background: #dcfce7; color: #166534; }
+        .tag-sell { background: #fee2e2; color: #991b1b; }
+        .tag-score-high { background: #dcfce7; color: #166534; }
+        .tag-score-mid { background: #fef9c3; color: #854d0e; }
+        .tag-score-low { background: #f1f5f9; color: #64748b; }
+        .tag-cluster { background: #ede9fe; color: #5b21b6; }
+        .tag-ceo { background: #dbeafe; color: #1e40af; }
+        .tag-date { background: #f1f5f9; color: #475569; }
+
+        /* Cluster cards */
+        .cluster-card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-left: 4px solid #7c3aed;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .cluster-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+
+        .cluster-headline {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .cluster-detail {
+            font-size: 0.92rem;
+            color: #475569;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .cluster-participants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .participant-chip {
+            font-size: 0.78rem;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        /* Filters row */
+        .filters-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-select, .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: white;
+            color: #1e293b;
+        }
+        .filter-select:focus, .filter-input:focus { outline: none; border-color: #34d399; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #0f172a; color: white; }
+        .btn-primary:hover { background: #1e293b; }
+        .btn-danger { background: #fee2e2; color: #dc2626; }
+        .btn-danger:hover { background: #fecaca; }
+
+        /* Section titles */
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #0f172a;
+        }
+        .section-subtitle {
+            font-size: 0.88rem;
+            color: #94a3b8;
+            margin-bottom: 20px;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 20px;
+        }
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .page-btn.active { background: #0f172a; color: white; border-color: #0f172a; }
+        .page-btn:hover:not(.active) { background: #f1f5f9; }
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Card container for white bg sections */
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+
+        /* Data table */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+        .data-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; font-weight: 600; }
+        .data-table tbody tr { transition: background 0.15s; cursor: pointer; }
+        .data-table tbody tr:hover { background: #f8fafc; }
+
+        /* Watchlist */
+        .watchlist-add {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .watchlist-add input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .watchlist-add input:focus { outline: none; border-color: #34d399; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: #f1f5f9;
+            border: none;
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover { background: #e2e8f0; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #94a3b8;
+        }
+        .empty-state p { font-size: 0.95rem; }
+
+        /* Skeleton loading animation */
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+        .skeleton-chart { height: 380px; margin: 16px 0; }
+        .skeleton-text { height: 16px; margin: 8px 0; width: 60%; }
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 16px 0;
+        }
+        .skeleton-card { height: 100px; border-radius: 12px; }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 24px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 20px; height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #059669;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .topbar { padding: 14px 16px; flex-wrap: wrap; gap: 10px; }
+            .search-box { width: 100%; }
+            .main { padding: 16px 12px; }
+            .nav-tabs { overflow-x: auto; }
+            .summary-strip { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="topbar">
+        <div class="topbar-title">Open<span>Insider</span> Intelligence</div>
+        <div class="topbar-right" style="position:relative;">
+            <input type="text" class="search-box" id="globalSearch" placeholder="Search ticker or insider name...">
+            <div class="search-results" id="searchResults"></div>
+            <span style="cursor:pointer;" onclick="switchTab('datahealth')">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="status-text" id="statusText">Checking...</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Summary strip -->
+        <div class="summary-strip" id="summaryStrip"></div>
+
+        <!-- Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="opportunities" onclick="switchTab('opportunities')">Opportunities</button>
+            <button class="nav-tab" data-tab="feed" onclick="switchTab('feed')">All Filings</button>
+            <button class="nav-tab" data-tab="clusters" onclick="switchTab('clusters')">Cluster Buys</button>
+            <button class="nav-tab" data-tab="heatmap" onclick="switchTab('heatmap')">Heatmap</button>
+            <button class="nav-tab" data-tab="research" onclick="switchTab('research')">Research</button>
+            <button class="nav-tab" data-tab="notable" onclick="switchTab('notable')">Notable Insiders</button>
+            <button class="nav-tab" data-tab="watchlist" onclick="switchTab('watchlist')">Watchlist</button>
+            <button class="nav-tab" data-tab="datahealth" onclick="switchTab('datahealth')">Data</button>
+        </div>
+
+        <!-- Opportunities Tab (default) -->
+        <div class="tab-content active" id="tab-opportunities">
+            <div class="section-title">Notable Insider Moves</div>
+            <div class="section-subtitle">High-conviction insider trades ranked by signal strength. These are the trades most likely to mean something.</div>
+            <div class="filters-row">
+                <select class="filter-select" id="oppType">
+                    <option value="">Buys & Sells</option>
+                    <option value="P" selected>Purchases only</option>
+                    <option value="S">Sales only</option>
+                </select>
+                <select class="filter-select" id="oppDays">
+                    <option value="3">Last 3 days</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 2 weeks</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="0" selected>All time</option>
+                </select>
+                <select class="filter-select" id="oppSort">
+                    <option value="score_desc">Highest score first</option>
+                    <option value="date_desc">Newest first</option>
+                    <option value="value_desc">Largest value first</option>
+                </select>
+                <label style="font-size:0.85rem; color:#64748b; font-weight:500;">Min score</label>
+                <input type="number" class="filter-input" id="oppMinScore" value="30" style="width:80px;">
+                <label style="font-size:0.85rem; color:#64748b; font-weight:500;">Show</label>
+                <input type="number" class="filter-input" id="oppLimit" value="50" style="width:70px;">
+                <label style="font-size:0.85rem; color:#64748b; font-weight:500; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" id="oppHide10b51" checked onchange="loadOpportunities()"> Hide 10b5-1 plans
+                </label>
+            </div>
+            <div id="oppContainer"></div>
+        </div>
+
+        <!-- All Filings Tab -->
+        <div class="tab-content" id="tab-feed">
+            <div class="section-title">Insider Filing Feed</div>
+            <div class="section-subtitle">Every SEC Form 4 filing we've scraped. Use filters to narrow down what you're looking for.</div>
+            <div class="filters-row">
+                <select class="filter-select" id="filterType">
+                    <option value="">All types</option>
+                    <option value="P">Purchases only</option>
+                    <option value="S">Sales only</option>
+                </select>
+                <select class="filter-select" id="filterDays">
+                    <option value="1">Today</option>
+                    <option value="3">Last 3 days</option>
+                    <option value="7" selected>Last 7 days</option>
+                    <option value="14">Last 2 weeks</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                    <option value="0">All time</option>
+                </select>
+                <select class="filter-select" id="filterSort">
+                    <option value="date_desc">Newest first</option>
+                    <option value="date_asc">Oldest first</option>
+                    <option value="score_desc">Highest score first</option>
+                    <option value="value_desc">Largest value first</option>
+                    <option value="value_asc">Smallest value first</option>
+                </select>
+                <input type="number" class="filter-input" id="filterMinValue" placeholder="Min value $" style="width:120px;">
+                <input type="number" class="filter-input" id="filterMinScore" placeholder="Min score" style="width:100px;">
+                <input type="text" class="filter-input" id="filterTicker" placeholder="Ticker" style="width:90px;">
+            </div>
+            <div id="filingsCount" style="font-size:0.82rem; color:#94a3b8; margin-bottom:12px;"></div>
+            <div id="filingsContainer"></div>
+            <div class="pagination" id="filingsPagination"></div>
+        </div>
+
+        <!-- Clusters Tab -->
+        <div class="tab-content" id="tab-clusters">
+            <div class="section-title">Cluster Buying Activity</div>
+            <div class="section-subtitle">When multiple insiders at the same company buy within 14 days. This is often the strongest signal that something is brewing.</div>
+            <div class="filters-row">
+                <select class="filter-select" id="clusterDays">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 2 weeks</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                </select>
+                <select class="filter-select" id="clusterMinInsiders">
+                    <option value="2" selected>2+ insiders</option>
+                    <option value="3">3+ insiders</option>
+                    <option value="4">4+ insiders</option>
+                </select>
+            </div>
+            <div id="clustersContainer"></div>
+        </div>
+
+        <!-- Heatmap Tab -->
+        <div class="tab-content" id="tab-heatmap">
+            <div class="section-title">Where Is the Money Going?</div>
+            <div class="section-subtitle">Insider buying volume by ticker. Bigger = more money flowing in.</div>
+            <div class="filters-row">
+                <select class="filter-select" id="heatmapMetric">
+                    <option value="buy_value">Total buy value</option>
+                    <option value="net_value">Net (buys minus sells)</option>
+                </select>
+                <select class="filter-select" id="heatmapPeriod">
+                    <option value="7d">7 days</option>
+                    <option value="30d" selected>30 days</option>
+                    <option value="90d">90 days</option>
+                </select>
+            </div>
+            <div id="heatmapChart" style="height:500px;"></div>
+        </div>
+
+        <!-- Research Tab -->
+        <div class="tab-content" id="tab-research">
+            <!-- Overview stats -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Does Following Insiders Actually Work?</div>
+                <div class="section-subtitle">We analyzed <strong id="researchTotalTrades">--</strong> insider purchases with known price outcomes. Here's what the data says.</div>
+                <div id="overallStatsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-top:20px;"></div>
+            </div>
+
+            <!-- Win Rate by Period + Score -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Win Rate & Average Return by Time Period</div>
+                <div class="section-subtitle">How often insider purchases are profitable (price went up) and the average return, broken down by score bracket. Higher scores = better picks.</div>
+                <div id="periodChart" style="height:400px;"></div>
+                <div id="periodTable" style="margin-top:16px;"></div>
+            </div>
+
+            <!-- Buys vs Sells comparison -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Insider Purchases vs Sales: Who's Smarter?</div>
+                <div class="section-subtitle">Are insiders better at buying or selling? Comparing average post-trade returns for buys vs sells.</div>
+                <div id="buySellChart" style="height:350px;"></div>
+            </div>
+
+            <!-- Spaghetti chart -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">What Happens After an Insider Buys?</div>
+                <div class="section-subtitle">Each faint line is a real insider purchase. The bold line is the average trajectory. This shows 200 randomly sampled trades.</div>
+                <div class="filters-row">
+                    <label style="font-size:0.85rem; color:#64748b; font-weight:500;">Minimum score</label>
+                    <select class="filter-select" id="trajMinScore">
+                        <option value="0">All scores</option>
+                        <option value="20">20+</option>
+                        <option value="40" selected>40+</option>
+                        <option value="60">60+</option>
+                    </select>
+                </div>
+                <div id="trajectoryChart" style="height:450px;"></div>
+                <div id="trajectoryStats" style="margin-top:12px; font-size:0.88rem; color:#64748b;"></div>
+            </div>
+
+            <!-- Score Distribution -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Score Distribution & Return by Bin</div>
+                <div class="section-subtitle">How many purchases fall in each score bin, and what returns they produce. Dual-axis: bars = count, line = avg 1-month return.</div>
+                <div id="scoreDistChart" style="height:400px;"></div>
+            </div>
+
+            <!-- Factor Analysis -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Which Signals Actually Matter?</div>
+                <div class="section-subtitle">Empirical win rates for each scoring factor. This helps us understand which parts of the score actually predict returns.</div>
+                <div id="factorCharts"></div>
+            </div>
+
+            <!-- Score calibration (existing, improved) -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">Score Calibration: Threshold vs Win Rate</div>
+                <div class="section-subtitle">If you only followed insiders with score >= X, what would your win rate be? The dotted line at 50% is random chance.</div>
+                <div id="calibrationChart" style="height:380px;"></div>
+            </div>
+
+            <!-- Scoring System Explanation -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="section-title">How the Score Works</div>
+                <div class="section-subtitle">The deterministic score (0-100) is a composite of 9 factors. Here's the breakdown.</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; font-size:0.9rem;" id="scoreExplainer">
+                    <div>
+                        <table class="data-table">
+                            <thead><tr><th>Factor</th><th>Max</th><th>Logic</th></tr></thead>
+                            <tbody>
+                                <tr><td style="font-weight:600;">Trade Type</td><td>15</td><td>15 for purchases, 0 for sales</td></tr>
+                                <tr><td style="font-weight:600;">Ownership Delta</td><td>15</td><td>New position (>90%): 15, >50%: 13, >20%: 10, >5%: 7, >1%: 4 <span style="color:#059669; font-weight:600;">(strongest predictor)</span></td></tr>
+                                <tr><td style="font-weight:600;">Trade Value</td><td>15</td><td>>$1M: 15, >$500K: 12, >$100K: 8, >$10K: 4</td></tr>
+                                <tr><td style="font-weight:600;">Seniority</td><td>13</td><td>CFO: 13, CEO: 12, President: 10, VP: 9, Director: 8, Other: 5, 10% Owner: 3</td></tr>
+                                <tr><td style="font-weight:600;">Stock Drawdown</td><td>12</td><td>Down >30%: 12, >20%: 8, >10%: 4 (requires market data)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <table class="data-table">
+                            <thead><tr><th>Factor</th><th>Max</th><th>Logic</th></tr></thead>
+                            <tbody>
+                                <tr><td style="font-weight:600;">Conviction Combo</td><td>10</td><td>>$500K AND >10% delta: 10, >$100K AND >20%: 8 <span style="color:#059669; font-weight:600;">(new factor)</span></td></tr>
+                                <tr><td style="font-weight:600;">Cluster Buying</td><td>10</td><td>3+ insiders in 14 days: 10, 2 insiders: 6</td></tr>
+                                <tr><td style="font-weight:600;">First Buy Signal</td><td>8</td><td>8 if no purchases in >12 months</td></tr>
+                                <tr><td style="font-weight:600;">Non-10b5-1</td><td>5</td><td>5 if discretionary (not an automatic plan)</td></tr>
+                                <tr><td style="font-weight:600;">Small Cap</td><td>5</td><td><$2B: 5, <$10B: 3 (requires market data)</td></tr>
+                            </tbody>
+                        </table>
+                        <div style="margin-top:12px; padding:12px; background:#dcfce7; border-radius:8px; font-size:0.85rem;">
+                            <strong>Max possible: 108 (capped at 100).</strong> Current database max is <strong id="actualMaxScore">--</strong>.
+                            The scoring was empirically validated: score >= 70 has a <strong>62.8% win rate</strong> and <strong>+7.3% average 1-month return</strong>.
+                            The new "Conviction Combo" factor rewards insiders who put serious money in AND significantly increase their stake.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Insiders -->
+            <div class="card">
+                <div class="section-title">Top Insiders by Track Record</div>
+                <div class="section-subtitle">Insiders with the best historical returns on their purchases.</div>
+                <div class="filters-row">
+                    <label style="font-size:0.85rem; color:#64748b;">Min trades</label>
+                    <input type="number" class="filter-input" id="leaderMinTrades" value="3" style="width:70px;">
+                    <select class="filter-select" id="leaderSort">
+                        <option value="accuracy">Best win rate</option>
+                        <option value="volume">Most active</option>
+                    </select>
+                </div>
+                <div id="leaderboardTable"></div>
+            </div>
+        </div>
+
+        <!-- Watchlist Tab -->
+        <!-- Notable Insiders Tab -->
+        <div class="tab-content" id="tab-notable">
+            <div class="section-title">Notable Insider Trades</div>
+            <div class="section-subtitle">SEC Form 4 filings from CEOs of major companies, billionaire investors, and politically connected figures. These are real SEC filings, not congressional disclosures.</div>
+            <div style="margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <button class="btn btn-secondary notable-filter active" onclick="filterNotable('all', this)">All</button>
+                <button class="btn btn-secondary notable-filter" onclick="filterNotable('Tech CEO', this)">Tech CEOs</button>
+                <button class="btn btn-secondary notable-filter" onclick="filterNotable('Finance', this)">Finance</button>
+                <button class="btn btn-secondary notable-filter" onclick="filterNotable('Investor', this)">Investors</button>
+                <button class="btn btn-secondary notable-filter" onclick="filterNotable('Political', this)">Political</button>
+                <span style="border-left:1px solid #cbd5e1; height:24px; margin:0 4px;"></span>
+                <select id="notableDays" onchange="reloadNotable()" style="padding:6px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.82rem; background:white;">
+                    <option value="90">Last 90 days</option>
+                    <option value="180">Last 6 months</option>
+                    <option value="365">Last year</option>
+                    <option value="0" selected>All time</option>
+                </select>
+                <select id="notableTradeType" onchange="reloadNotable()" style="padding:6px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.82rem; background:white;">
+                    <option value="">All trades</option>
+                    <option value="P">Purchases only</option>
+                    <option value="S">Sales only</option>
+                </select>
+            </div>
+            <div id="notableContainer">
+                <div style="text-align:center; padding:40px; color:#94a3b8;">Loading notable insiders...</div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-watchlist">
+            <div class="section-title">Your Watchlist</div>
+            <div class="section-subtitle">Get priority alerts when insiders trade these tickers.</div>
+            <div class="card">
+                <div class="watchlist-add">
+                    <input type="text" id="watchlistTicker" placeholder="Ticker (e.g. AAPL)">
+                    <input type="text" id="watchlistNotes" placeholder="Why are you watching this?" style="flex:2;">
+                    <button class="btn btn-primary" onclick="addToWatchlist()">Add</button>
+                </div>
+                <div id="watchlistTable"></div>
+            </div>
+        </div>
+
+        <!-- Data Health Tab -->
+        <div class="tab-content" id="tab-datahealth">
+            <div class="section-title">Data & Pipeline Status</div>
+            <div class="section-subtitle">See exactly what data we have and when it was last refreshed.</div>
+            <div id="dataHealthContainer"></div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">x</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            loadOpportunities();
+            loadScrapeStatus();
+            setInterval(refreshTimestamps, 60000);
+
+            // Reactive filters: selects trigger immediately, inputs debounce 400ms
+            function bindReactive(ids, fn) {
+                let debounceTimer;
+                ids.forEach(function(id) {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (el.tagName === 'SELECT') {
+                        el.addEventListener('change', fn);
+                    } else {
+                        el.addEventListener('input', function() {
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(fn, 400);
+                        });
+                    }
+                });
+            }
+            bindReactive(['oppType', 'oppDays', 'oppSort', 'oppMinScore', 'oppLimit'], loadOpportunities);
+            bindReactive(['filterType', 'filterDays', 'filterSort', 'filterMinValue', 'filterMinScore', 'filterTicker'], function() { loadFilings(1); });
+            bindReactive(['clusterDays', 'clusterMinInsiders'], loadClusters);
+            bindReactive(['heatmapMetric', 'heatmapPeriod'], loadHeatmap);
+            bindReactive(['leaderMinTrades', 'leaderSort'], loadLeaderboard);
+            bindReactive(['trajMinScore'], loadTrajectoryChart);
+        });
+
+        function timeTag(dateStr) {
+            if (!dateStr) return '';
+            return '<span class="live-time" data-ts="' + dateStr + '">' + relativeDate(dateStr) + '<\/span>';
+        }
+
+        function refreshTimestamps() {
+            document.querySelectorAll('.live-time').forEach(function(el) {
+                el.textContent = relativeDate(el.dataset.ts);
+            });
+        }
+
+        // --- Helpers ---
+        function esc(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function formatMoney(val) {
+            if (!val) return '$0';
+            const abs = Math.abs(val);
+            if (abs >= 1e9) return '$' + (abs / 1e9).toFixed(1) + 'B';
+            if (abs >= 1e6) return '$' + (abs / 1e6).toFixed(1) + 'M';
+            if (abs >= 1e3) return '$' + (abs / 1e3).toFixed(0) + 'K';
+            return '$' + abs.toLocaleString();
+        }
+
+        function tradeVerb(tradeType) {
+            if (!tradeType) return 'traded';
+            return tradeType.toUpperCase().startsWith('P') ? 'bought' : 'sold';
+        }
+
+        function isBuy(tradeType) {
+            return tradeType && tradeType.toUpperCase().startsWith('P');
+        }
+
+        function roleLabel(title) {
+            if (!title) return '';
+            const t = title.toLowerCase();
+            if (t.includes('ceo') || t.includes('chief executive')) return 'CEO';
+            if (t.includes('cfo') || t.includes('chief financial')) return 'CFO';
+            if (t.includes('coo') || t.includes('chief operating')) return 'COO';
+            if (t.includes('president') || t.includes('pres')) return 'President';
+            if (t.includes('director')) return 'Director';
+            if (t.includes('vp') || t.includes('vice president')) return 'VP';
+            return title.length > 30 ? title.substring(0, 30) + '...' : title;
+        }
+
+        function companyLinks(ticker, companyName) {
+            if (!ticker) return '';
+            const wikiQuery = encodeURIComponent(companyName || ticker);
+            return `<a href="https://www.google.com/finance/quote/${ticker}:NASDAQ" target="_blank" rel="noopener" style="color:#059669; font-size:0.82rem; text-decoration:none; margin-right:8px;" title="Google Finance">Google Finance</a>` +
+                   `<a href="https://en.wikipedia.org/wiki/Special:Search?search=${wikiQuery}" target="_blank" rel="noopener" style="color:#059669; font-size:0.82rem; text-decoration:none; margin-right:8px;" title="Wikipedia">Wikipedia</a>` +
+                   `<a href="https://finance.yahoo.com/quote/${ticker}" target="_blank" rel="noopener" style="color:#059669; font-size:0.82rem; text-decoration:none;" title="Yahoo Finance">Yahoo Finance</a>`;
+        }
+
+        function planBadge(is_10b5_1) {
+            if (is_10b5_1 === 0) return '<span class="meta-tag" style="background:#dcfce7; color:#166534; font-size:0.72rem;">Discretionary</span>';
+            if (is_10b5_1 === 1) return '<span class="meta-tag" style="background:#fee2e2; color:#991b1b; font-size:0.72rem;">10b5-1 Plan</span>';
+            return '';
+        }
+
+        function scoreClass(score) {
+            if (score === null || score === undefined) return 'tag-score-low';
+            return score >= 60 ? 'tag-score-high' : score >= 40 ? 'tag-score-mid' : 'tag-score-low';
+        }
+
+        function strengthClass(score) {
+            if (score === null || score === undefined) return '';
+            return score >= 60 ? 'strength-high' : score >= 40 ? 'strength-mid' : 'strength-low';
+        }
+
+        function relativeDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - d;
+            const mins = Math.floor(diffMs / 60000);
+            const hrs = Math.floor(diffMs / 3600000);
+            const days = Math.floor(diffMs / 86400000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return mins + ' min ago';
+            if (hrs === 1) return '1 hour ago';
+            if (hrs < 24) return hrs + ' hours ago';
+            if (days === 1) return '1 day ago';
+            if (days < 7) return days + ' days ago';
+            if (days < 30) return Math.floor(days / 7) + (Math.floor(days / 7) === 1 ? ' week ago' : ' weeks ago');
+            if (days < 365) return Math.floor(days / 30) + (Math.floor(days / 30) === 1 ? ' month ago' : ' months ago');
+            return Math.floor(days / 365) + (Math.floor(days / 365) === 1 ? ' year ago' : ' years ago');
+        }
+
+        function buildHeadline(f) {
+            const role = roleLabel(f.title);
+            const name = f.insider_name || 'An insider';
+            const verb = tradeVerb(f.trade_type);
+            const money = formatMoney(f.value);
+            const ticker = f.ticker || '???';
+            const company = f.company_name || '';
+
+            if (isBuy(f.trade_type)) {
+                if (role && (role === 'CEO' || role === 'CFO' || role === 'COO' || role === 'President')) {
+                    return `${role} ${name} just ${verb} ${money} of ${ticker}`;
+                }
+                return `${name} (${role || 'insider'}) ${verb} ${money} of ${ticker}`;
+            } else {
+                return `${name} (${role || 'insider'}) ${verb} ${money} of ${ticker}`;
+            }
+        }
+
+        function buildDetail(f) {
+            const parts = [];
+            const company = f.company_name || f.ticker;
+
+            if (f.price) parts.push(`at $${Number(f.price).toFixed(2)} per share`);
+            if (f.qty) parts.push(`${Number(f.qty).toLocaleString()} shares`);
+            if (f.delta_own && Math.abs(f.delta_own) > 1) {
+                if (isBuy(f.trade_type)) {
+                    parts.push(`increasing their stake by ${Math.abs(f.delta_own).toFixed(0)}%`);
+                } else {
+                    parts.push(`reducing their stake by ${Math.abs(f.delta_own).toFixed(0)}%`);
+                }
+            }
+            if (company && company !== f.ticker) parts.push(`(${company})`);
+
+            return parts.join(' -- ');
+        }
+
+        // --- Tab switching ---
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const activeBtn = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+
+            if (tab === 'opportunities') loadOpportunities();
+            if (tab === 'feed') loadFilings();
+            if (tab === 'clusters') loadClusters();
+            if (tab === 'heatmap') loadHeatmap();
+            if (tab === 'research') { loadResearchAll(); loadTrajectoryChart(); }
+            if (tab === 'notable') loadNotableInsiders();
+            if (tab === 'watchlist') loadWatchlist();
+            if (tab === 'datahealth') loadDataHealth();
+        }
+
+        // --- Stats ---
+        function loadStats() {
+            fetch('/api/stats').then(r => r.json()).then(data => {
+                document.getElementById('summaryStrip').innerHTML = [
+                    { val: data.total_filings || 0, label: 'Total Filings' },
+                    { val: data.filings_today || 0, label: 'Filed Today' },
+                    { val: data.clusters_this_week || 0, label: 'Clusters This Week' },
+                    { val: data.highest_score || 0, label: 'Highest Score' },
+                    { val: data.active_insiders || 0, label: 'Active Insiders (7d)' },
+                ].map(s => `
+                    <div class="summary-item">
+                        <div class="summary-number">${typeof s.val === 'number' ? s.val.toLocaleString() : s.val}</div>
+                        <div class="summary-label">${s.label}</div>
+                    </div>
+                `).join('');
+            }).catch(() => {
+                document.getElementById('summaryStrip').innerHTML = '<div class="summary-item"><div class="summary-label">Run the pipeline to see data</div></div>';
+            });
+        }
+
+        // --- Opportunities ---
+        function loadOpportunities() {
+            document.getElementById('oppContainer').innerHTML = '<div class="loading-spinner">Loading opportunities...</div>';
+            const minScore = document.getElementById('oppMinScore').value || 30;
+            const limit = document.getElementById('oppLimit').value || 50;
+            const tradeType = document.getElementById('oppType').value;
+            const sort = document.getElementById('oppSort').value;
+            const days = document.getElementById('oppDays').value;
+
+            const hide10b51 = document.getElementById('oppHide10b51').checked ? 1 : 0;
+            const params = new URLSearchParams({
+                min_score: minScore, limit: limit, sort: sort, hide_10b5_1: hide10b51
+            });
+            if (tradeType) params.set('trade_type', tradeType);
+            if (days > 0) params.set('days', days);
+
+            fetch('/api/opportunities?' + params).then(r => r.json()).then(data => {
+                if (!data.opportunities || data.opportunities.length === 0) {
+                    document.getElementById('oppContainer').innerHTML = '<div class="empty-state"><p>No notable insider moves above this score threshold. Try lowering the minimum score.</p></div>';
+                    return;
+                }
+
+                document.getElementById('oppContainer').innerHTML = data.opportunities.map(f => {
+                    const headline = buildHeadline(f);
+                    const detail = buildDetail(f);
+                    const strength = strengthClass(f.deterministic_score);
+                    const buy = isBuy(f.trade_type);
+
+                    let llmThesis = '';
+                    if (f.llm_analysis) {
+                        try {
+                            const analysis = typeof f.llm_analysis === 'string' ? JSON.parse(f.llm_analysis) : f.llm_analysis;
+                            if (analysis.thesis) llmThesis = analysis.thesis;
+                        } catch(e) {}
+                    }
+
+                    return `
+                        <div class="signal-card ${strength}" onclick="showFilingDetail(${f.id})">
+                            <div class="signal-headline">${headline}</div>
+                            <div class="signal-detail">${detail}</div>
+                            ${llmThesis ? `<div class="signal-detail" style="font-style:italic; color:#6b7280;">AI take: ${llmThesis}</div>` : ''}
+                            <div class="signal-meta">
+                                <span class="meta-tag ${buy ? 'tag-buy' : 'tag-sell'}">${buy ? 'PURCHASE' : 'SALE'}</span>
+                                <span class="meta-tag ${scoreClass(f.deterministic_score)}">Score: ${Math.round(f.deterministic_score || 0)}/100</span>
+                                ${roleLabel(f.title) ? `<span class="meta-tag tag-ceo">${roleLabel(f.title)}</span>` : ''}
+                                ${planBadge(f.is_10b5_1)}
+                                <span class="meta-tag tag-date">${timeTag(f.filing_date)}</span>
+                                ${f.llm_priority === 'high' ? '<span class="meta-tag tag-cluster">AI: High Priority</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }).catch(() => {
+                document.getElementById('oppContainer').innerHTML = '<div class="empty-state"><p>Unable to load opportunities.</p></div>';
+            });
+        }
+
+        // --- All Filings ---
+        function loadFilings(page) {
+            document.getElementById('filingsContainer').innerHTML = '<div class="loading-spinner">Loading filings...</div>';
+            currentPage = page || 1;
+            const params = new URLSearchParams({
+                trade_type: document.getElementById('filterType').value,
+                min_value: document.getElementById('filterMinValue').value || 0,
+                min_score: document.getElementById('filterMinScore').value || 0,
+                ticker: document.getElementById('filterTicker').value,
+                days: document.getElementById('filterDays').value,
+                sort: document.getElementById('filterSort').value,
+                page: currentPage,
+                per_page: 30
+            });
+
+            fetch('/api/filings?' + params).then(r => r.json()).then(data => {
+                document.getElementById('filingsCount').textContent = data.total ?
+                    `Showing ${data.filings ? data.filings.length : 0} of ${data.total} filings` : '';
+
+                if (!data.filings || data.filings.length === 0) {
+                    document.getElementById('filingsContainer').innerHTML = '<div class="empty-state"><p>No filings match these filters.</p></div>';
+                    document.getElementById('filingsPagination').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('filingsContainer').innerHTML = data.filings.map(f => {
+                    const headline = buildHeadline(f);
+                    const detail = buildDetail(f);
+                    const strength = strengthClass(f.deterministic_score);
+                    const buy = isBuy(f.trade_type);
+
+                    return `
+                        <div class="signal-card ${strength}" onclick="showFilingDetail(${f.id})">
+                            <div class="signal-headline">${headline}</div>
+                            <div class="signal-detail">${detail}</div>
+                            <div class="signal-meta">
+                                <span class="meta-tag ${buy ? 'tag-buy' : 'tag-sell'}">${buy ? 'PURCHASE' : 'SALE'}</span>
+                                <span class="meta-tag ${scoreClass(f.deterministic_score)}">Score: ${f.deterministic_score !== null ? Math.round(f.deterministic_score) : 'N/A'}</span>
+                                ${roleLabel(f.title) ? `<span class="meta-tag tag-ceo">${roleLabel(f.title)}</span>` : ''}
+                                ${planBadge(f.is_10b5_1)}
+                                <span class="meta-tag tag-date">${timeTag(f.filing_date)}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                let pagHtml = '';
+                if (data.pages > 1) {
+                    pagHtml += `<button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="loadFilings(${currentPage-1})">Prev</button>`;
+                    for (let i = Math.max(1, currentPage-2); i <= Math.min(data.pages, currentPage+2); i++) {
+                        pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="loadFilings(${i})">${i}</button>`;
+                    }
+                    pagHtml += `<button class="page-btn" ${currentPage >= data.pages ? 'disabled' : ''} onclick="loadFilings(${currentPage+1})">Next</button>`;
+                }
+                document.getElementById('filingsPagination').innerHTML = pagHtml;
+            }).catch(() => {
+                document.getElementById('filingsContainer').innerHTML = '<div class="empty-state"><p>Unable to load filings.</p></div>';
+            });
+        }
+
+        // --- Notable Insiders ---
+        let _notableData = null;
+        let _notableFilter = 'all';
+        let _notableQueryKey = '';
+
+        function loadNotableInsiders() {
+            const days = document.getElementById('notableDays').value;
+            const tradeType = document.getElementById('notableTradeType').value;
+            const qk = `${days}_${tradeType}`;
+            if (_notableData && _notableQueryKey === qk) { renderNotable(_notableData); return; }
+            document.getElementById('notableContainer').innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Loading notable insiders...</div>';
+            fetch(`/api/notable-insiders?days=${days}&trade_type=${encodeURIComponent(tradeType)}`).then(r => r.json()).then(data => {
+                _notableData = data;
+                _notableQueryKey = qk;
+                renderNotable(data);
+            });
+        }
+
+        function reloadNotable() {
+            _notableData = null;
+            loadNotableInsiders();
+        }
+
+        function filterNotable(category, btn) {
+            _notableFilter = category;
+            document.querySelectorAll('.notable-filter').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            if (_notableData) renderNotable(_notableData);
+        }
+
+        function renderNotable(data) {
+            const filtered = _notableFilter === 'all' ? data :
+                data.filter(p => p.category.includes(_notableFilter));
+
+            if (!filtered.length) {
+                document.getElementById('notableContainer').innerHTML =
+                    '<div style="text-align:center; padding:40px; color:#94a3b8;">No notable insiders in this category.</div>';
+                return;
+            }
+
+            const html = filtered.map(person => {
+                const latest = person.latest_filing;
+                const isBuyLatest = latest && (latest.trade_type || '').startsWith('P');
+                const latestDate = latest ? (latest.filing_date || '').substring(0, 10) : 'N/A';
+
+                const filingsHtml = person.recent_filings.map(f => {
+                    const buy = (f.trade_type || '').startsWith('P');
+                    const val = f.value || 0;
+                    const absVal = Math.abs(val);
+                    const valStr = absVal >= 1e9 ? '$' + (absVal/1e9).toFixed(1) + 'B' :
+                                   absVal >= 1e6 ? '$' + (absVal/1e6).toFixed(1) + 'M' :
+                                   absVal >= 1e3 ? '$' + (absVal/1e3).toFixed(0) + 'K' : '$' + absVal.toFixed(0);
+                    const color = buy ? '#059669' : '#dc2626';
+                    const bg = buy ? '#ecfdf5' : '#fef2f2';
+                    const arrow = buy ? '+' : '-';
+                    const date = (f.filing_date || '').substring(0, 10);
+                    const scoreTag = f.deterministic_score !== null ?
+                        `<span class="meta-tag ${scoreClass(f.deterministic_score)}" style="font-size:0.72rem;">${Math.round(f.deterministic_score)}</span>` : '';
+                    return `<div style="display:grid; grid-template-columns:80px 50px 1fr 70px 40px; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; font-size:0.82rem;" onclick="showFilingDetail(${f.id})">
+                        <span style="color:#64748b;">${date}</span>
+                        <span style="font-weight:700; color:#0f172a;">${f.ticker}</span>
+                        <span style="color:${color}; font-weight:600;">${buy ? 'BUY' : 'SELL'} ${valStr}</span>
+                        <span style="color:#64748b; font-size:0.75rem;">${esc(f.title)}</span>
+                        ${scoreTag}
+                    </div>`;
+                }).join('');
+
+                const catColors = {
+                    'Tech CEO': '#8b5cf6', 'Finance CEO': '#0ea5e9', 'Activist Investor': '#f59e0b',
+                    'Investor': '#f59e0b', 'Political': '#ef4444', 'Political/VC': '#ef4444',
+                    'Finance/Family': '#0ea5e9', 'Tech/Family': '#8b5cf6',
+                    'Family Office': '#0ea5e9', 'Corporate CEO': '#6366f1'
+                };
+                const catColor = catColors[person.category] || '#64748b';
+
+                return `<div class="card" style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div>
+                            <div style="font-size:1.1rem; font-weight:700; color:#0f172a;">${esc(person.display_name)}</div>
+                            <div style="font-size:0.82rem; color:#64748b; margin-top:2px;">${esc(person.note)}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="padding:3px 10px; border-radius:12px; background:${catColor}15; color:${catColor}; font-size:0.75rem; font-weight:600;">${person.category}</span>
+                            <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">${person.total_filings} filings total</div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:12px; font-size:0.82rem;">
+                        <div><span style="color:#94a3b8;">Purchases</span><br><strong style="color:#059669;">${person.purchases}</strong></div>
+                        <div><span style="color:#94a3b8;">Sales</span><br><strong style="color:#dc2626;">${person.sales}</strong></div>
+                        <div><span style="color:#94a3b8;">Total bought</span><br><strong style="color:#059669;">${formatMoney(person.total_bought)}</strong></div>
+                        <div><span style="color:#94a3b8;">Total sold</span><br><strong style="color:#dc2626;">${formatMoney(person.total_sold)}</strong></div>
+                    </div>
+                    <details>
+                        <summary style="cursor:pointer; font-size:0.85rem; font-weight:600; color:#475569; padding:4px 0;">Recent filings (${person.recent_filings.length})</summary>
+                        <div style="margin-top:8px;">${filingsHtml}</div>
+                    </details>
+                </div>`;
+            }).join('');
+
+            document.getElementById('notableContainer').innerHTML = html;
+        }
+
+        // --- Score breakdown renderer ---
+        function renderScoreBreakdown(f) {
+            if (!f.score_breakdown || f.deterministic_score === null) return '';
+            const b = f.score_breakdown;
+            const inputs = f.score_inputs || {};
+            const factors = [
+                { key: 'trade_type', label: 'Trade Type', max: 15,
+                  explain: b.trade_type > 0 ? 'Purchase (strongest signal)' : 'Not a purchase' },
+                { key: 'seniority', label: 'Insider Seniority', max: 13,
+                  explain: seniorityExplain(f.title, b.seniority) },
+                { key: 'trade_value', label: 'Trade Value', max: 15,
+                  explain: tradeValueExplain(f.value) },
+                { key: 'ownership_delta', label: 'Ownership Change', max: 15,
+                  explain: deltaExplain(f.delta_own) },
+                { key: 'conviction', label: 'Conviction Combo', max: 10,
+                  explain: convictionExplain(f.value, f.delta_own, b.conviction) },
+                { key: 'first_buy', label: 'First Buy Signal', max: 8,
+                  explain: b.first_buy >= 8 ? 'First buy — no prior purchases found' : b.first_buy >= 5 ? 'No buys in 6+ months' : (inputs.insider_history_count === 0 ? 'No prior history in DB' : 'Has recent buying history') },
+                { key: 'cluster', label: 'Cluster Buying', max: 10,
+                  explain: inputs.cluster_participant_count >= 3 ? `${inputs.cluster_participant_count} insiders buying together` :
+                           inputs.cluster_participant_count >= 2 ? '2 insiders buying together' : 'No cluster detected' },
+                { key: 'plan_10b5_1', label: '10b5-1 Plan Status', max: 5, min: -20,
+                  explain: plan10b51Explain(f.is_10b5_1, b.plan_10b5_1) },
+                { key: 'drawdown', label: 'Buying the Dip', max: 12,
+                  explain: drawdownExplain(inputs.market_context, inputs.has_market_data) },
+                { key: 'small_cap', label: 'Small Cap Bonus', max: 5,
+                  explain: smallCapExplain(inputs.market_context, inputs.has_market_data) },
+            ];
+            const total = Math.round(f.deterministic_score);
+            const rows = factors.map(fac => {
+                const pts = b[fac.key] || 0;
+                const facMin = fac.min || 0;
+                const isNegative = pts < 0;
+                const pct = isNegative ? (Math.abs(pts) / Math.abs(facMin)) * 100 : (pts / fac.max) * 100;
+                const barColor = isNegative ? '#dc2626' : pts === fac.max ? '#059669' : pts > 0 ? '#0ea5e9' : '#e2e8f0';
+                const textColor = isNegative ? '#dc2626' : pts > 0 ? '#0f172a' : '#94a3b8';
+                const ptsLabel = facMin < 0 ? `${pts >= 0 ? '+' : ''}${pts}` : `${pts}/${fac.max}`;
+                return `<div style="display:grid; grid-template-columns:140px 50px 1fr; align-items:center; gap:8px; padding:4px 0;">
+                    <div style="font-size:0.82rem; color:${textColor}; font-weight:${pts !== 0 ? '600' : '400'};">${fac.label}</div>
+                    <div style="font-size:0.82rem; font-weight:700; color:${isNegative ? '#dc2626' : pts === fac.max ? '#059669' : pts > 0 ? '#0ea5e9' : '#94a3b8'}; text-align:right;">${ptsLabel}</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="flex:1; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden;">
+                            <div style="width:${Math.min(pct, 100)}%; height:100%; background:${barColor}; border-radius:3px; transition:width 0.3s;"></div>
+                        </div>
+                        <div style="font-size:0.75rem; color:#94a3b8; min-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${fac.explain}">${fac.explain}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `<div style="margin-top:20px; padding:16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; cursor:pointer;" onclick="this.parentElement.querySelector('.breakdown-body').style.display = this.parentElement.querySelector('.breakdown-body').style.display === 'none' ? 'block' : 'none'; this.querySelector('.chevron').textContent = this.parentElement.querySelector('.breakdown-body').style.display === 'none' ? '>' : 'v'">
+                    <div style="font-weight:700; font-size:0.95rem; color:#0f172a;">Score Breakdown <span style="font-weight:400; color:#64748b; font-size:0.82rem;">(${total}/100)</span></div>
+                    <span class="chevron" style="color:#94a3b8; font-family:monospace; font-size:1.1rem;">></span>
+                </div>
+                <div class="breakdown-body" style="display:none;">${rows}</div>
+            </div>`;
+        }
+
+        function seniorityExplain(title, pts) {
+            if (!title) return 'Unknown role';
+            const t = title.toLowerCase();
+            if (t.includes('10%')) return '10% owner (weakest group)';
+            if (t.includes('cfo') || t.includes('chief financial')) return 'CFO (best track record)';
+            if (t.includes('ceo') || t.includes('chief executive')) return 'CEO';
+            if (t.includes('coo') || t.includes('president')) return 'President/COO';
+            if (t.includes('vp') || t.includes('vice president')) return 'VP';
+            if (t.includes('director')) return 'Director';
+            return title.substring(0, 30);
+        }
+
+        function tradeValueExplain(val) {
+            if (!val || val <= 0) return 'No value data';
+            if (val > 1000000) return '$' + (val/1000000).toFixed(1) + 'M - major bet';
+            if (val > 500000) return '$' + (val/1000).toFixed(0) + 'K - large trade';
+            if (val > 100000) return '$' + (val/1000).toFixed(0) + 'K - significant';
+            if (val > 10000) return '$' + (val/1000).toFixed(0) + 'K - moderate';
+            return '$' + val.toFixed(0) + ' - small trade';
+        }
+
+        function deltaExplain(delta) {
+            if (!delta) return 'No ownership data';
+            const d = Math.abs(delta);
+            if (d > 90) return '+' + delta.toFixed(0) + '% - new position!';
+            if (d > 50) return '+' + delta.toFixed(0) + '% - massive increase';
+            if (d > 20) return '+' + delta.toFixed(0) + '% - large increase';
+            if (d > 5) return '+' + delta.toFixed(0) + '% - notable increase';
+            if (d > 1) return '+' + delta.toFixed(1) + '% - small increase';
+            return '+' + delta.toFixed(1) + '% - tiny increase';
+        }
+
+        function convictionExplain(val, delta, pts) {
+            if (pts >= 10) return 'Big money + big stake increase';
+            if (pts >= 8) return '$100K+ with 20%+ stake increase';
+            if (pts >= 5) return '$100K+ with 5%+ stake increase';
+            return 'No combined conviction signal';
+        }
+
+        function plan10b51Explain(is_10b5_1, pts) {
+            if (is_10b5_1 === 1) return 'Prearranged 10b5-1 plan (-20 pts)';
+            if (is_10b5_1 === 0) return 'Confirmed discretionary trade (+5)';
+            return 'Not yet checked (SEC XML pending)';
+        }
+
+        function drawdownExplain(ctx, hasData) {
+            if (!hasData) return 'No market data (not scored)';
+            const dd = Math.abs(ctx.drawdown_from_52w_high || 0);
+            if (dd > 30) return dd.toFixed(0) + '% off 52-week high - deep dip';
+            if (dd > 20) return dd.toFixed(0) + '% off high - notable dip';
+            if (dd > 10) return dd.toFixed(0) + '% off high - mild dip';
+            return dd.toFixed(0) + '% off high - near highs';
+        }
+
+        function smallCapExplain(ctx, hasData) {
+            if (!hasData) return 'No market data (not scored)';
+            const mc = ctx.market_cap || 0;
+            if (mc <= 0) return 'Market cap unknown';
+            if (mc < 2e9) return '$' + (mc/1e9).toFixed(1) + 'B - small cap, less coverage';
+            if (mc < 10e9) return '$' + (mc/1e9).toFixed(1) + 'B - mid cap';
+            return '$' + (mc/1e9).toFixed(0) + 'B - large cap, well covered';
+        }
+
+        // --- Filing detail modal ---
+        function showFilingDetail(id) {
+            fetch('/api/filings/' + id).then(r => r.json()).then(f => {
+                const buy = isBuy(f.trade_type);
+                const role = roleLabel(f.title);
+
+                let llmHtml = '';
+                if (f.llm_analysis) {
+                    try {
+                        const a = typeof f.llm_analysis === 'string' ? JSON.parse(f.llm_analysis) : f.llm_analysis;
+                        llmHtml = `
+                            <div style="margin-top:20px; padding:16px; background:#f0fdf4; border-radius:10px;">
+                                <div style="font-weight:700; margin-bottom:8px; color:#166534;">AI Analysis (${a.priority || '?'} priority, ${((a.confidence || 0) * 100).toFixed(0)}% confidence)</div>
+                                ${a.thesis ? `<p style="margin-bottom:8px;"><strong>Thesis:</strong> ${a.thesis}</p>` : ''}
+                                ${a.bull_case ? `<p style="margin-bottom:8px; color:#166534;"><strong>Bull case:</strong> ${a.bull_case}</p>` : ''}
+                                ${a.bear_case ? `<p style="margin-bottom:8px; color:#991b1b;"><strong>Bear case:</strong> ${a.bear_case}</p>` : ''}
+                                ${a.next_steps ? `<p style="font-size:0.85rem; color:#64748b;"><strong>Next steps:</strong> ${Array.isArray(a.next_steps) ? a.next_steps.join(', ') : a.next_steps}</p>` : ''}
+                            </div>
+                        `;
+                    } catch(e) {
+                        llmHtml = `<div style="margin-top:20px; padding:16px; background:#f0fdf4; border-radius:10px; font-size:0.9rem;">${f.llm_analysis}</div>`;
+                    }
+                }
+
+                let priceHtml = '';
+                if (f.price_change_1d !== null || f.price_change_1w !== null || f.price_change_1m !== null) {
+                    const tags = [
+                        ['1 day', f.price_change_1d],
+                        ['1 week', f.price_change_1w],
+                        ['1 month', f.price_change_1m],
+                        ['6 months', f.price_change_6m]
+                    ].filter(([_, v]) => v !== null && v !== undefined).map(([label, val]) => {
+                        const color = val >= 0 ? '#166534' : '#991b1b';
+                        const bg = val >= 0 ? '#dcfce7' : '#fee2e2';
+                        const arrow = val >= 0 ? '+' : '';
+                        return `<span style="padding:4px 10px; border-radius:6px; background:${bg}; color:${color}; font-weight:600; font-size:0.82rem;">${label}: ${arrow}${val.toFixed(1)}%</span>`;
+                    }).join(' ');
+                    if (tags) priceHtml = `<div style="margin-top:16px;"><div style="font-weight:600; margin-bottom:8px; font-size:0.9rem;">Price after trade</div><div style="display:flex; gap:8px; flex-wrap:wrap;">${tags}</div></div>`;
+                }
+
+                document.getElementById('modalBody').innerHTML = `
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:1.3rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
+                            <a href="/company/${encodeURIComponent(f.ticker)}" style="color:#059669; text-decoration:none;">${esc(f.ticker)}</a> -- ${esc(f.company_name)}
+                        </div>
+                        <div style="margin:6px 0;">${companyLinks(f.ticker, f.company_name)}</div>
+                        <div style="font-size:1rem; color:#475569;">
+                            ${esc(role) ? esc(role) + ' ' : ''}${esc(f.insider_name) || 'Unknown insider'}
+                            <span class="meta-tag ${buy ? 'tag-buy' : 'tag-sell'}" style="margin-left:8px;">${buy ? 'PURCHASED' : 'SOLD'}</span>
+                            ${planBadge(f.is_10b5_1)}
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.92rem;">
+                        <div><span style="color:#94a3b8;">Value</span><br><strong>${formatMoney(f.value)}</strong></div>
+                        <div><span style="color:#94a3b8;">Price per share</span><br><strong>$${f.price || '?'}</strong></div>
+                        <div><span style="color:#94a3b8;">Shares</span><br><strong>${f.qty ? Number(f.qty).toLocaleString() : '?'}</strong></div>
+                        <div><span style="color:#94a3b8;">Ownership change</span><br><strong>${f.delta_own ? (f.delta_own > 0 ? '+' : '') + f.delta_own + '%' : 'N/A'}</strong></div>
+                        <div><span style="color:#94a3b8;">Trade date</span><br><strong>${f.trade_date || '?'}</strong></div>
+                        <div><span style="color:#94a3b8;">Filed</span><br><strong>${f.filing_date ? f.filing_date.substring(0,10) : '?'}</strong></div>
+                        <div><span style="color:#94a3b8;">Signal score</span><br><strong><span class="meta-tag ${scoreClass(f.deterministic_score)}">${f.deterministic_score !== null ? Math.round(f.deterministic_score) + '/100' : 'N/A'}</span></strong></div>
+                        <div><span style="color:#94a3b8;">SEC filing</span><br>${f.filing_url && f.filing_url.startsWith('http') ? `<a href="${f.filing_url}" target="_blank" style="color:#059669;">View on SEC.gov</a>` : 'N/A'}</div>
+                    </div>
+
+                    ${renderScoreBreakdown(f)}
+
+                    ${priceHtml}
+
+                    <div style="margin-top:20px;">
+                        <div style="font-weight:700; margin-bottom:4px; font-size:0.95rem;">Price Chart</div>
+                        <div style="font-size:0.82rem; color:#94a3b8; margin-bottom:8px;">1-year price with this trade marked. <a href="/company/${f.ticker}" style="color:#059669;">See full company page</a></div>
+                        <div id="modalPriceChart" style="height:280px;">
+                            <div style="text-align:center; padding:40px; color:#94a3b8; font-size:0.9rem;">Loading chart...</div>
+                        </div>
+                    </div>
+
+                    ${llmHtml}
+                `;
+                document.getElementById('detailModal').classList.add('open');
+
+                // Load price chart for this ticker
+                loadModalPriceChart(f);
+            });
+        }
+
+        function loadModalPriceChart(filing) {
+            fetch(`/api/company/${filing.ticker}/price-history?period=1y`).then(r => r.json()).then(data => {
+                if (!data.prices || data.prices.length === 0) {
+                    document.getElementById('modalPriceChart').innerHTML =
+                        '<div style="text-align:center; padding:40px; color:#94a3b8; font-size:0.9rem;">No price data available.</div>';
+                    return;
+                }
+
+                const dates = data.prices.map(p => p.date);
+                const closes = data.prices.map(p => p.close);
+                const tradeDate = (filing.trade_date || filing.filing_date || '').substring(0, 10);
+                const buy = isBuy(filing.trade_type);
+
+                // Find price at trade date
+                let tradePrice = filing.price;
+                if (!tradePrice) {
+                    for (let i = data.prices.length - 1; i >= 0; i--) {
+                        if (data.prices[i].date <= tradeDate) { tradePrice = data.prices[i].close; break; }
+                    }
+                }
+
+                const traces = [{
+                    x: dates,
+                    y: closes,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Price',
+                    line: { color: '#334155', width: 2 },
+                    hovertemplate: '%{x}<br>$%{y:.2f}<extra></extra>'
+                }];
+
+                // Trade marker
+                if (tradePrice && tradeDate >= dates[0] && tradeDate <= dates[dates.length - 1]) {
+                    traces.push({
+                        x: [tradeDate],
+                        y: [tradePrice],
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: buy ? 'Purchase' : 'Sale',
+                        marker: {
+                            symbol: buy ? 'triangle-up' : 'triangle-down',
+                            color: buy ? '#059669' : '#dc2626',
+                            size: 16,
+                            line: { color: 'white', width: 2 }
+                        },
+                        hovertemplate: `${buy ? 'Bought' : 'Sold'} at $${tradePrice}<br>${tradeDate}<extra></extra>`
+                    });
+                }
+
+                // Also fetch and show other filings for this ticker
+                fetch(`/api/company/${filing.ticker}/timeline`).then(r => r.json()).then(tl => {
+                    const otherFilings = (tl.filings || []).filter(of =>
+                        of.id !== filing.id &&
+                        (of.trade_date || of.filing_date || '').substring(0, 10) >= dates[0] &&
+                        (of.trade_date || of.filing_date || '').substring(0, 10) <= dates[dates.length - 1]
+                    );
+
+                    const otherBuys = otherFilings.filter(f => isBuy(f.trade_type));
+                    const otherSells = otherFilings.filter(f => !isBuy(f.trade_type));
+
+                    if (otherBuys.length > 0) {
+                        traces.push({
+                            x: otherBuys.map(f => (f.trade_date || f.filing_date).substring(0, 10)),
+                            y: otherBuys.map(f => {
+                                const d = (f.trade_date || f.filing_date).substring(0, 10);
+                                if (f.price) return f.price;
+                                for (let i = data.prices.length - 1; i >= 0; i--) {
+                                    if (data.prices[i].date <= d) return data.prices[i].close;
+                                }
+                                return null;
+                            }),
+                            type: 'scatter', mode: 'markers', name: 'Other buys',
+                            marker: { symbol: 'triangle-up', color: 'rgba(5,150,105,0.4)', size: 10 },
+                            text: otherBuys.map(f => `${roleLabel(f.title) || ''} ${esc(f.insider_name)} - ${formatMoney(f.value)}`),
+                            hovertemplate: '%{text}<extra>BUY</extra>'
+                        });
+                    }
+
+                    if (otherSells.length > 0) {
+                        traces.push({
+                            x: otherSells.map(f => (f.trade_date || f.filing_date).substring(0, 10)),
+                            y: otherSells.map(f => {
+                                const d = (f.trade_date || f.filing_date).substring(0, 10);
+                                if (f.price) return f.price;
+                                for (let i = data.prices.length - 1; i >= 0; i--) {
+                                    if (data.prices[i].date <= d) return data.prices[i].close;
+                                }
+                                return null;
+                            }),
+                            type: 'scatter', mode: 'markers', name: 'Other sells',
+                            marker: { symbol: 'triangle-down', color: 'rgba(220,38,38,0.4)', size: 10 },
+                            text: otherSells.map(f => `${roleLabel(f.title) || ''} ${esc(f.insider_name)} - ${formatMoney(f.value)}`),
+                            hovertemplate: '%{text}<extra>SELL</extra>'
+                        });
+                    }
+
+                    // Vertical line for the current trade
+                    const shapes = [];
+                    if (tradeDate >= dates[0] && tradeDate <= dates[dates.length - 1]) {
+                        shapes.push({
+                            type: 'line', x0: tradeDate, x1: tradeDate,
+                            y0: 0, y1: 1, yref: 'paper',
+                            line: { color: buy ? '#059669' : '#dc2626', width: 2, dash: 'dash' }
+                        });
+                    }
+
+                    Plotly.newPlot('modalPriceChart', traces, {
+                        xaxis: { gridcolor: '#f1f5f9', type: 'date' },
+                        yaxis: { gridcolor: '#f1f5f9', tickprefix: '$' },
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white',
+                        font: { family: 'Inter', color: '#1e293b', size: 11 },
+                        margin: { t: 10, r: 10, b: 40, l: 55 },
+                        hovermode: 'closest',
+                        legend: { orientation: 'h', y: -0.18, font: { size: 10 } },
+                        shapes: shapes
+                    }, { responsive: true, displayModeBar: false });
+                });
+            }).catch(() => {
+                document.getElementById('modalPriceChart').innerHTML =
+                    '<div style="text-align:center; padding:40px; color:#94a3b8; font-size:0.9rem;">Failed to load chart.</div>';
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('open');
+        }
+
+        // --- Clusters ---
+        function loadClusters() {
+            document.getElementById('clustersContainer').innerHTML = '<div class="loading-spinner">Loading clusters...</div>';
+            const days = document.getElementById('clusterDays').value;
+            const minInsiders = document.getElementById('clusterMinInsiders').value;
+
+            fetch(`/api/clusters?days=${days}&min_insiders=${minInsiders}`).then(r => r.json()).then(data => {
+                if (!data.clusters || data.clusters.length === 0) {
+                    document.getElementById('clustersContainer').innerHTML = '<div class="empty-state"><p>No cluster buying detected in this period.</p></div>';
+                    return;
+                }
+
+                document.getElementById('clustersContainer').innerHTML = data.clusters.map(c => {
+                    let names = [];
+                    try { names = JSON.parse(c.insider_names || '[]'); } catch(e) {}
+
+                    const headline = `${c.participant_count} insiders bought ${formatMoney(c.total_value)} of ${c.ticker} within 2 weeks`;
+
+                    let details = [];
+                    if (c.has_ceo) details.push('includes the CEO');
+                    if (c.has_cfo) details.push('includes the CFO');
+
+                    const detailStr = details.length > 0
+                        ? details.join(' and ').charAt(0).toUpperCase() + details.join(' and ').slice(1) + '. '
+                        : '';
+
+                    const dateRange = `${c.start_date} to ${c.end_date}`;
+
+                    return `
+                        <div class="cluster-card" onclick="window.location='/company/${c.ticker}'">
+                            <div class="cluster-headline">${headline}</div>
+                            <div class="cluster-detail">
+                                ${detailStr}Cluster score: ${Math.round(c.cluster_score || 0)}/100. Period: ${dateRange}.
+                            </div>
+                            <div class="cluster-participants">
+                                ${names.map(n => `<span class="participant-chip">${n}</span>`).join('')}
+                            </div>
+                            <div class="signal-meta" style="margin-top:10px;">
+                                <span class="meta-tag tag-cluster">${c.participant_count} insiders</span>
+                                <span class="meta-tag ${scoreClass(c.cluster_score)}">Score: ${Math.round(c.cluster_score || 0)}</span>
+                                ${c.has_ceo ? '<span class="meta-tag tag-ceo">CEO</span>' : ''}
+                                ${c.has_cfo ? '<span class="meta-tag tag-ceo">CFO</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }).catch(() => {
+                document.getElementById('clustersContainer').innerHTML = '<div class="empty-state"><p>Unable to load clusters.</p></div>';
+            });
+        }
+
+        // --- Heatmap ---
+        function loadHeatmap() {
+            const metric = document.getElementById('heatmapMetric').value;
+            const period = document.getElementById('heatmapPeriod').value;
+
+            fetch(`/api/heatmap?metric=${metric}&period=${period}`).then(r => r.json()).then(data => {
+                if (!data.heatmap || data.heatmap.length === 0) {
+                    document.getElementById('heatmapChart').innerHTML = '<div class="empty-state"><p>No heatmap data available.</p></div>';
+                    return;
+                }
+
+                const tickers = data.heatmap.map(r => r.ticker);
+                const values = data.heatmap.map(r => r.buy_value || r.net_value || 0);
+
+                Plotly.newPlot('heatmapChart', [{
+                    type: 'treemap',
+                    labels: tickers,
+                    parents: tickers.map(() => ''),
+                    values: values.map(v => Math.abs(v)),
+                    text: values.map(v => formatMoney(Math.abs(v))),
+                    textinfo: 'label+text',
+                    marker: {
+                        colors: values.map(v => v >= 0 ? v : -v),
+                        colorscale: [[0, '#fecaca'], [0.5, '#fef9c3'], [1, '#dcfce7']],
+                        showscale: false
+                    },
+                    textfont: { family: 'Inter', size: 14 }
+                }], {
+                    margin: { t: 10, r: 10, b: 10, l: 10 },
+                    paper_bgcolor: 'rgba(255,255,255,0)',
+                    font: { family: 'Inter, sans-serif' }
+                }, { responsive: true, displayModeBar: false });
+            }).catch(() => {
+                document.getElementById('heatmapChart').innerHTML = '<div class="empty-state"><p>Unable to load heatmap.</p></div>';
+            });
+        }
+
+        // --- Research ---
+        const plotLayout = {
+            plot_bgcolor: 'white', paper_bgcolor: 'white',
+            font: { family: 'Inter', color: '#1e293b', size: 12 },
+        };
+        const plotOpts = { responsive: true, displayModeBar: false };
+
+        function showSkeletons() {
+            const skel = '<div class="skeleton skeleton-chart"></div>';
+            const skelGrid = '<div class="skeleton-grid">' +
+                '<div class="skeleton skeleton-card"></div>'.repeat(4) + '</div>';
+            document.getElementById('overallStatsGrid').innerHTML = skelGrid;
+            ['periodChart','buySellChart','scoreDistChart','calibrationChart'].forEach(id => {
+                document.getElementById(id).innerHTML = skel;
+            });
+            document.getElementById('periodTable').innerHTML = '';
+            document.getElementById('factorCharts').innerHTML = skel;
+            document.getElementById('leaderboardTable').innerHTML = '<div class="loading-spinner">Loading leaderboard...</div>';
+            document.getElementById('trajectoryChart').innerHTML = skel;
+        }
+
+        let _researchCache = null;
+
+        function loadResearchAll() {
+            showSkeletons();
+
+            async function safeRender(data) {
+                // Clear skeletons first so we never get stuck in infinite loading
+                ['periodChart','buySellChart','scoreDistChart','calibrationChart'].forEach(id => {
+                    document.getElementById(id).innerHTML = '';
+                });
+                try {
+                    await renderResearch(data);
+                } catch (e) {
+                    console.error('renderResearch error:', e);
+                    const msg = '<div class="empty-state"><p style="color:#dc2626;">Error rendering: ' + e.message + '</p></div>';
+                    document.getElementById('overallStatsGrid').innerHTML = msg;
+                    ['periodChart','buySellChart','scoreDistChart','calibrationChart'].forEach(id => {
+                        document.getElementById(id).innerHTML = msg;
+                    });
+                }
+            }
+
+            if (_researchCache) {
+                requestAnimationFrame(() => safeRender(_researchCache));
+                return;
+            }
+
+            fetch('/api/research/all').then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            }).then(data => {
+                _researchCache = data;
+                requestAnimationFrame(() => safeRender(data));
+            }).catch(err => {
+                console.error('Research fetch error:', err);
+                const msg = '<div class="empty-state"><p style="color:#dc2626;">Failed to load: ' + err.message + '</p></div>';
+                document.getElementById('overallStatsGrid').innerHTML = msg;
+                ['periodChart','buySellChart','scoreDistChart','calibrationChart'].forEach(id => {
+                    document.getElementById(id).innerHTML = msg;
+                });
+            });
+        }
+
+        async function renderResearch(data) {
+            console.log('[Research] renderResearch called, Plotly:', typeof Plotly, 'data keys:', Object.keys(data));
+            if (typeof Plotly === 'undefined') {
+                document.getElementById('overallStatsGrid').innerHTML =
+                    '<div class="empty-state"><p>Plotly library failed to load. Check your internet connection and refresh.</p></div>';
+                return;
+            }
+            // --- Overview stats cards ---
+            const periods = ['1 Day', '1 Week', '1 Month', '6 Months'];
+            const colors = ['#6366f1', '#3b82f6', '#059669', '#0f172a'];
+            let html = '';
+            let totalTrades = 0;
+            periods.forEach((p, i) => {
+                const s = data.overall[p];
+                if (!s) return;
+                if (i === 0) totalTrades = s.total;
+                const arrowColor = s.avg_return >= 0 ? '#059669' : '#dc2626';
+                const arrow = s.avg_return >= 0 ? '+' : '';
+                html += `<div style="background:white; border-radius:12px; padding:16px 20px; border-left:4px solid ${colors[i]};">
+                    <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; font-weight:600; letter-spacing:0.05em;">${p} After Purchase</div>
+                    <div style="font-size:1.8rem; font-weight:800; color:${arrowColor};">${arrow}${s.avg_return}%</div>
+                    <div style="font-size:0.85rem; color:#64748b;">Win rate: <strong style="color:${s.win_rate >= 50 ? '#059669' : '#dc2626'}">${s.win_rate}%</strong> (${s.total.toLocaleString()} trades)</div>
+                    <div style="font-size:0.8rem; color:#94a3b8; margin-top:4px;">Avg win: +${s.avg_win}% | Avg loss: ${s.avg_loss}%</div>
+                </div>`;
+            });
+            document.getElementById('overallStatsGrid').innerHTML = html;
+            document.getElementById('researchTotalTrades').textContent = totalTrades.toLocaleString();
+
+            // --- Period chart ---
+            const binLabels = ['0-19', '20-39', '40-59', '60+'];
+            const traces = [];
+            periods.forEach((p, i) => {
+                const bins = data.by_bin[p] || [];
+                traces.push({
+                    x: bins.map(b => b.bin), y: bins.map(b => b.avg_return),
+                    name: p, type: 'bar',
+                    marker: { color: colors[i], opacity: 0.85 },
+                    hovertemplate: `${p}<br>Score bin: %{x}<br>Avg return: %{y}%<br>Win rate: %{text}%<extra></extra>`,
+                    text: bins.map(b => b.win_rate),
+                });
+            });
+            console.log('[Research] Rendering periodChart, traces:', traces.length);
+            await Plotly.newPlot('periodChart', traces, {
+                ...plotLayout, barmode: 'group',
+                xaxis: { title: 'Score Bin' },
+                yaxis: { title: 'Average Return (%)', zeroline: true, zerolinecolor: '#e2e8f0' },
+                margin: { t: 20, r: 20, b: 50, l: 60 },
+                legend: { orientation: 'h', y: -0.18 },
+            }, plotOpts);
+            console.log('[Research] periodChart rendered');
+
+            // Period table
+            let tableHtml = '<table class="data-table"><thead><tr><th>Score Bin</th>';
+            periods.forEach(p => { tableHtml += `<th colspan="2">${p}</th>`; });
+            tableHtml += '</tr><tr><th></th>';
+            periods.forEach(() => { tableHtml += '<th>Win Rate</th><th>Avg Return</th>'; });
+            tableHtml += '</tr></thead><tbody>';
+            binLabels.forEach((label, idx) => {
+                tableHtml += `<tr><td style="font-weight:600;">${label}</td>`;
+                periods.forEach(p => {
+                    const bins = data.by_bin[p] || [];
+                    const b = bins[idx] || {};
+                    const wr = b.win_rate || 0;
+                    const ar = b.avg_return || 0;
+                    tableHtml += `<td style="color:${wr >= 50 ? '#059669' : '#dc2626'}; font-weight:600;">${wr}%</td>`;
+                    tableHtml += `<td style="color:${ar >= 0 ? '#059669' : '#dc2626'};">${ar >= 0 ? '+' : ''}${ar}%</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+            document.getElementById('periodTable').innerHTML = tableHtml;
+
+            // --- Buy vs Sell ---
+            const buyData = periods.map(p => data.overall[p]?.avg_return || 0);
+            const sellData = periods.map(p => data.overall[p + ' (Sales)']?.avg_return || 0);
+            await Plotly.newPlot('buySellChart', [
+                { x: periods, y: buyData, name: 'After Insider Buys', type: 'bar', marker: { color: '#059669' },
+                  hovertemplate: 'Buy avg return: %{y}%<extra></extra>' },
+                { x: periods, y: sellData, name: 'After Insider Sells', type: 'bar', marker: { color: '#dc2626' },
+                  hovertemplate: 'Sell avg return: %{y}%<extra></extra>' },
+            ], {
+                ...plotLayout, barmode: 'group',
+                yaxis: { title: 'Average Return (%)', zeroline: true, zerolinecolor: '#e2e8f0' },
+                margin: { t: 20, r: 20, b: 40, l: 60 },
+                legend: { orientation: 'h', y: -0.15 },
+                shapes: [{ type: 'line', x0: -0.5, x1: 3.5, y0: 0, y1: 0, line: { color: '#94a3b8', dash: 'dot', width: 1 } }],
+            }, plotOpts);
+
+            // --- Score distribution ---
+            if (data.distribution && data.distribution.length > 0) {
+                const bins2 = data.distribution.map(d => d.bin + '-' + (d.bin + 9));
+                const counts = data.distribution.map(d => d.total);
+                const returns1m = data.distribution.map(d => d.avg_return_1m ? Math.round(d.avg_return_1m * 100) / 100 : 0);
+                const maxBin = data.distribution[data.distribution.length - 1];
+                const el = document.getElementById('actualMaxScore');
+                if (el) el.textContent = (maxBin.bin + 9) + ' (bin ' + maxBin.bin + '-' + (maxBin.bin + 9) + ')';
+                await Plotly.newPlot('scoreDistChart', [
+                    { x: bins2, y: counts, name: 'Filings', type: 'bar', marker: { color: '#e2e8f0' },
+                      hovertemplate: 'Score %{x}<br>Count: %{y:,}<extra></extra>', yaxis: 'y' },
+                    { x: bins2, y: returns1m, name: 'Avg 1m Return (%)', type: 'scatter', mode: 'lines+markers',
+                      line: { color: '#059669', width: 3 }, marker: { size: 10, color: '#059669' },
+                      hovertemplate: 'Score %{x}<br>Avg return: %{y}%<extra></extra>', yaxis: 'y2' }
+                ], {
+                    ...plotLayout, xaxis: { title: 'Score Bin' },
+                    yaxis: { title: 'Number of Purchases', side: 'left' },
+                    yaxis2: { title: 'Avg 1-Month Return (%)', overlaying: 'y', side: 'right', zeroline: true, zerolinecolor: '#e2e8f0' },
+                    margin: { t: 20, r: 60, b: 50, l: 60 },
+                    legend: { orientation: 'h', y: -0.18 },
+                }, plotOpts);
+            }
+
+            // --- Calibration ---
+            if (data.calibration && data.calibration.length > 0) {
+                await Plotly.newPlot('calibrationChart', [{
+                    x: data.calibration.map(c => c.threshold), y: data.calibration.map(c => c.win_rate),
+                    type: 'bar',
+                    marker: { color: data.calibration.map(c => c.win_rate >= 50 ? '#059669' : '#f87171'), cornerradius: 4 },
+                    hovertemplate: 'Score >= %{x}<br>Win Rate: %{y}%<br>Trades: %{text:,}<extra></extra>',
+                    text: data.calibration.map(c => c.total)
+                }], {
+                    ...plotLayout,
+                    xaxis: { title: 'Minimum Score Threshold', dtick: 10 },
+                    yaxis: { title: 'Win Rate (%)', range: [0, 100] },
+                    margin: { t: 20, r: 20, b: 50, l: 50 },
+                    shapes: [{ type: 'line', x0: 0, x1: 100, y0: 50, y1: 50, line: { color: '#cbd5e1', dash: 'dot', width: 1 } }]
+                }, plotOpts);
+            }
+
+            // --- Factor analysis ---
+            if (data.factors && data.factors.length > 0) {
+                const grouped = {};
+                data.factors.forEach(f => { if (!grouped[f.factor]) grouped[f.factor] = []; grouped[f.factor].push(f); });
+                let fhtml = '';
+                Object.entries(grouped).forEach(([factor, items]) => {
+                    const chartId = 'factor-' + factor.replace(/\s/g, '-').toLowerCase();
+                    fhtml += `<div style="margin-bottom:24px;"><div style="font-weight:700; font-size:1rem; margin-bottom:8px;">${factor}</div><div id="${chartId}" style="height:250px;"></div></div>`;
+                });
+                document.getElementById('factorCharts').innerHTML = fhtml;
+                for (const [factor, items] of Object.entries(grouped)) {
+                    const chartId = 'factor-' + factor.replace(/\s/g, '-').toLowerCase();
+                    await Plotly.newPlot(chartId, [
+                        { x: items.map(i => i.value), y: items.map(i => i.win_rate), name: 'Win Rate (%)', type: 'bar',
+                          marker: { color: items.map(i => i.win_rate >= 50 ? '#059669' : '#f87171') },
+                          hovertemplate: '%{x}<br>Win rate: %{y}%<br>Trades: %{text:,}<extra></extra>',
+                          text: items.map(i => i.total), yaxis: 'y' },
+                        { x: items.map(i => i.value), y: items.map(i => i.avg_return), name: 'Avg Return (%)',
+                          type: 'scatter', mode: 'lines+markers', line: { color: '#0f172a', width: 2 },
+                          marker: { size: 8, color: '#0f172a' },
+                          hovertemplate: '%{x}<br>Avg return: %{y}%<extra></extra>', yaxis: 'y2' }
+                    ], {
+                        ...plotLayout,
+                        yaxis: { title: 'Win Rate (%)', range: [0, Math.max(...items.map(i => i.win_rate)) * 1.2] },
+                        yaxis2: { title: 'Avg Return (%)', overlaying: 'y', side: 'right' },
+                        margin: { t: 10, r: 60, b: 40, l: 60 },
+                        legend: { orientation: 'h', y: -0.2 },
+                        shapes: [{ type: 'line', x0: -0.5, x1: items.length - 0.5, y0: 50, y1: 50, line: { color: '#cbd5e1', dash: 'dot', width: 1 } }],
+                    }, plotOpts);
+                }
+            }
+
+            // --- Leaderboard (from same payload) ---
+            renderLeaderboard(data.insiders || []);
+
+            // Resize all Plotly charts to ensure correct dimensions
+            // (fixes blank charts when tab was just made visible)
+            requestAnimationFrame(() => {
+                ['periodChart','buySellChart','scoreDistChart','calibrationChart'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && el.data) Plotly.Plots.resize(el);
+                });
+                document.querySelectorAll('[id^="factor-"]').forEach(el => {
+                    if (el.data) Plotly.Plots.resize(el);
+                });
+            });
+        }
+
+        function renderLeaderboard(insiders) {
+            if (!insiders || insiders.length === 0) {
+                document.getElementById('leaderboardTable').innerHTML = '<div class="empty-state"><p>Not enough insider data yet.</p></div>';
+                return;
+            }
+            document.getElementById('leaderboardTable').innerHTML = `
+                <table class="data-table">
+                    <thead><tr>
+                        <th>#</th><th>Insider</th><th>Trades</th><th>Buy Value</th>
+                        <th>Avg Score</th><th>Win Rate</th><th>Avg Return</th>
+                    </tr></thead>
+                    <tbody>
+                        ${insiders.map((ins, i) => `
+                            <tr onclick="window.location='/insider/${encodeURIComponent(ins.insider_name)}'">
+                                <td style="color:#94a3b8; font-weight:600;">${i+1}</td>
+                                <td style="font-weight:600;">${esc(ins.insider_name)}</td>
+                                <td>${ins.total_trades} (${ins.buys || 0}B / ${ins.sells || 0}S)</td>
+                                <td>${formatMoney(ins.total_value)}</td>
+                                <td><span class="meta-tag ${scoreClass(ins.avg_score)}">${ins.avg_score ? Math.round(ins.avg_score) : 'N/A'}</span></td>
+                                <td style="font-weight:700; color:${(ins.win_rate || 0) >= 50 ? '#059669' : '#dc2626'};">${ins.win_rate !== null ? ins.win_rate + '%' : 'N/A'}</td>
+                                <td style="color:${(ins.avg_return || 0) >= 0 ? '#059669' : '#dc2626'};">${ins.avg_return !== null ? (ins.avg_return >= 0 ? '+' : '') + ins.avg_return.toFixed(1) + '%' : 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function loadTrajectoryChart() {
+            const minScore = document.getElementById('trajMinScore').value;
+            document.getElementById('trajectoryChart').innerHTML = '<div class="loading-spinner">Loading trajectories...</div>';
+
+            fetch(`/api/research/trajectory-sample?min_score=${minScore}`).then(r => r.json()).then(data => {
+                if (!data.trajectories || data.trajectories.length === 0) {
+                    document.getElementById('trajectoryChart').innerHTML = '<div class="empty-state"><p>Not enough data.</p></div>';
+                    return;
+                }
+
+                const xLabels = ['Purchase', '1 Day', '1 Week', '1 Month', '6 Months'];
+                const traces = [];
+
+                data.trajectories.forEach(t => {
+                    const color = (t.price_change_6m || t.price_change_1m) >= 0 ? 'rgba(5,150,105,0.08)' : 'rgba(220,38,38,0.08)';
+                    traces.push({
+                        x: xLabels,
+                        y: [0, t.price_change_1d, t.price_change_1w, t.price_change_1m, t.price_change_6m],
+                        type: 'scatter', mode: 'lines',
+                        line: { color: color, width: 1 },
+                        showlegend: false, hoverinfo: 'skip',
+                    });
+                });
+
+                const avg = data.average;
+                traces.push({
+                    x: xLabels, y: [0, avg.d1, avg.w1, avg.m1, avg.m6],
+                    type: 'scatter', mode: 'lines+markers', name: 'Average',
+                    line: { color: '#059669', width: 4 }, marker: { size: 10, color: '#059669' },
+                    hovertemplate: '%{x}: %{y:.1f}%<extra>Average</extra>',
+                });
+
+                const med = data.median;
+                if (med && med.price_change_1d !== undefined) {
+                    traces.push({
+                        x: xLabels, y: [0, med.price_change_1d, med.price_change_1w, med.price_change_1m, med.price_change_6m],
+                        type: 'scatter', mode: 'lines+markers', name: 'Median',
+                        line: { color: '#3b82f6', width: 3, dash: 'dash' }, marker: { size: 8, color: '#3b82f6' },
+                        hovertemplate: '%{x}: %{y:.1f}%<extra>Median</extra>',
+                    });
+                }
+
+                traces.push({
+                    x: xLabels, y: [0, 0, 0, 0, 0], type: 'scatter', mode: 'lines',
+                    line: { color: '#94a3b8', width: 1, dash: 'dot' }, showlegend: false, hoverinfo: 'skip',
+                });
+
+                Plotly.newPlot('trajectoryChart', traces, {
+                    ...plotLayout, yaxis: { title: 'Return (%)', zeroline: false },
+                    xaxis: { fixedrange: true }, margin: { t: 10, r: 20, b: 40, l: 60 },
+                    legend: { orientation: 'h', y: -0.12 },
+                }, plotOpts);
+
+                const winners = data.trajectories.filter(t => t.price_change_1m > 0).length;
+                const losers = data.trajectories.length - winners;
+                document.getElementById('trajectoryStats').innerHTML =
+                    `Sample: ${data.count} trades with score >= ${minScore} | ` +
+                    `Average 6-month return: <strong style="color:#059669;">+${avg.m6?.toFixed(1)}%</strong> | ` +
+                    `Winners/Losers (1m): <strong style="color:#059669;">${winners}</strong> / <strong style="color:#dc2626;">${losers}</strong>`;
+            });
+        }
+
+        function loadLeaderboard() {
+            const minTrades = document.getElementById('leaderMinTrades').value || 3;
+            const sort = document.getElementById('leaderSort').value;
+            document.getElementById('leaderboardTable').innerHTML = '<div class="loading-spinner">Loading leaderboard...</div>';
+
+            fetch(`/api/research/top-insiders?min_trades=${minTrades}&sort=${sort}`).then(r => r.json()).then(data => {
+                renderLeaderboard(data.insiders || []);
+            }).catch(() => {
+                document.getElementById('leaderboardTable').innerHTML = '<div class="empty-state"><p>Unable to load leaderboard.</p></div>';
+            });
+        }
+
+        // --- Watchlist ---
+        function loadWatchlist() {
+            fetch('/api/watchlist').then(r => r.json()).then(data => {
+                if (!data.watchlist || data.watchlist.length === 0) {
+                    document.getElementById('watchlistTable').innerHTML = '<div class="empty-state"><p>No tickers on your watchlist yet. Add some above.</p></div>';
+                    return;
+                }
+                document.getElementById('watchlistTable').innerHTML = `
+                    <table class="data-table">
+                        <thead><tr><th>Ticker</th><th>Notes</th><th>Added</th><th></th></tr></thead>
+                        <tbody>
+                            ${data.watchlist.map(w => `
+                                <tr>
+                                    <td><a href="/company/${w.ticker}" style="color:#059669; font-weight:700; text-decoration:none;">${w.ticker}</a></td>
+                                    <td style="color:#64748b;">${esc(w.notes) || '--'}</td>
+                                    <td style="color:#94a3b8; font-size:0.85rem;">${w.added_at ? w.added_at.substring(0,10) : ''}</td>
+                                    <td><button class="btn btn-danger" onclick="removeFromWatchlist(${w.id})" style="padding:4px 10px; font-size:0.8rem;">Remove</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }).catch(() => {
+                document.getElementById('watchlistTable').innerHTML = '<div class="empty-state"><p>Unable to load watchlist.</p></div>';
+            });
+        }
+
+        function addToWatchlist() {
+            const ticker = document.getElementById('watchlistTicker').value.trim();
+            const notes = document.getElementById('watchlistNotes').value.trim();
+            if (!ticker) return;
+            fetch('/api/watchlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker, notes })
+            }).then(r => r.json()).then(() => {
+                document.getElementById('watchlistTicker').value = '';
+                document.getElementById('watchlistNotes').value = '';
+                loadWatchlist();
+            });
+        }
+
+        function removeFromWatchlist(id) {
+            fetch('/api/watchlist', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            }).then(r => r.json()).then(() => loadWatchlist());
+        }
+
+        // --- Scrape Status (topbar) ---
+        function loadScrapeStatus() {
+            fetch('/api/data-health').then(r => r.json()).then(data => {
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+
+                if (!data.recent_runs || data.recent_runs.length === 0) {
+                    dot.className = 'status-dot warn';
+                    text.textContent = 'No data yet';
+                } else if (data.errors_last_24h > 0) {
+                    dot.className = 'status-dot warn';
+                    text.textContent = `${data.total_filings} filings | ${data.errors_last_24h} errors`;
+                } else {
+                    dot.className = 'status-dot';
+                    const lastRun = data.recent_runs[0];
+                    text.innerHTML = `${data.total_filings} filings | Updated ${timeTag(lastRun.started_at)}`;
+                }
+            }).catch(() => {
+                document.getElementById('statusDot').className = 'status-dot warn';
+                document.getElementById('statusText').textContent = 'Offline';
+            });
+        }
+
+        // --- Data Health Tab ---
+        function formatRunRow(run) {
+            var rawUrl = run.url || '?';
+            var url = rawUrl.split('?')[0];
+            if (url.charAt(0) === '/') url = url.substring(1);
+            var source = url.length > 35 ? url.substring(0, 35) + '...' : url;
+            var statusColor = run.status === 'success' ? '#059669' : '#dc2626';
+            var newBadge = run.filings_new > 0
+                ? '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px; font-weight:600; font-size:0.8rem;">' + run.filings_new + ' new<\/span>'
+                : '<span style="color:#94a3b8;">' + (run.filings_new || 0) + '<\/span>';
+            return '<tr>' +
+                '<td style="white-space:nowrap;">' + timeTag(run.started_at) + '<br><span style="font-size:0.78rem; color:#94a3b8;">' + (run.started_at || '').substring(0, 19) + '<\/span><\/td>' +
+                '<td style="font-size:0.85rem;">' + source + '<\/td>' +
+                '<td>' + (run.filings_found || 0) + '<\/td>' +
+                '<td>' + newBadge + '<\/td>' +
+                '<td style="color:' + statusColor + '; font-weight:600;">' + (run.status || '?') +
+                (run.error_message ? '<br><span style="font-size:0.78rem; color:#dc2626;">' + run.error_message + '<\/span>' : '') +
+                '<\/td><\/tr>';
+        }
+
+        function loadDataHealth() {
+            fetch('/api/data-health').then(r => r.json()).then(data => {
+                const container = document.getElementById('dataHealthContainer');
+
+                // Pipeline status color
+                let pipelineStatus = 'Healthy';
+                let pipelineColor = '#059669';
+                if (!data.recent_runs || data.recent_runs.length === 0) {
+                    pipelineStatus = 'Never run';
+                    pipelineColor = '#f59e0b';
+                } else if (data.errors_last_24h > 0) {
+                    pipelineStatus = data.errors_last_24h + ' errors in last 24h';
+                    pipelineColor = '#dc2626';
+                }
+
+                // Last new data info
+                let lastNewDataText = 'Never';
+                if (data.last_new_data) {
+                    lastNewDataText = timeTag(data.last_new_data.started_at) + ` (${data.last_new_data.filings_new} new filings)`;
+                }
+
+                container.innerHTML = `
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="section-title" style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:12px;height:12px;border-radius:50%;background:${pipelineColor};display:inline-block;"></span>
+                            Pipeline Status: ${pipelineStatus}
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-top:16px;">
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#0f172a;">${data.total_filings}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">Total Filings</div>
+                            </div>
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#059669;">${data.total_buys}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">Purchases</div>
+                            </div>
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#dc2626;">${data.total_sells}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">Sales</div>
+                            </div>
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#0f172a;">${data.total_tickers}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">Unique Tickers</div>
+                            </div>
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#7c3aed;">${data.total_clusters}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">Clusters</div>
+                            </div>
+                            <div class="stat-block">
+                                <div style="font-size:2rem; font-weight:800; color:#0f172a;">${data.filings_last_24h}</div>
+                                <div style="font-size:0.82rem; color:#94a3b8; text-transform:uppercase; font-weight:500;">New (24h)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="section-title">Data Coverage</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:0.95rem; margin-top:12px;">
+                            <div>
+                                <span style="color:#94a3b8;">Earliest filing</span><br>
+                                <strong>${data.earliest_filing || 'N/A'}</strong>
+                            </div>
+                            <div>
+                                <span style="color:#94a3b8;">Latest filing</span><br>
+                                <strong>${data.latest_filing || 'N/A'}</strong>
+                            </div>
+                            <div>
+                                <span style="color:#94a3b8;">Last time new data was found</span><br>
+                                <strong>${lastNewDataText}</strong>
+                            </div>
+                            <div>
+                                <span style="color:#94a3b8;">Pipeline runs today</span><br>
+                                <strong>${data.pipeline_runs_today}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-title">Recent Pipeline Runs</div>
+                        <div class="section-subtitle">The scraper runs every hour Mon-Fri during US market hours (9 AM - 5 PM ET).</div>
+                        <table class="data-table" style="margin-top:12px;">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Source</th>
+                                    <th>Found</th>
+                                    <th>New</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.recent_runs.map(formatRunRow).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(() => {
+                document.getElementById('dataHealthContainer').innerHTML =
+                    '<div class="empty-state"><p>Unable to load data health info.</p></div>';
+            });
+        }
+
+        // --- Search ---
+        let searchTimeout;
+        document.getElementById('globalSearch').addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const q = e.target.value.trim();
+            if (!q) { document.getElementById('searchResults').classList.remove('open'); return; }
+            searchTimeout = setTimeout(() => {
+                fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json()).then(data => {
+                    const results = document.getElementById('searchResults');
+                    let html = '';
+                    if (data.companies) {
+                        data.companies.forEach(c => {
+                            html += `<div class="search-result-item" onclick="window.location='/company/${c.ticker}'">
+                                <strong>${c.ticker}</strong> -- ${c.company_name || ''}
+                                <div style="margin-top:4px;" onclick="event.stopPropagation();">${companyLinks(c.ticker, c.company_name)}</div>
+                            </div>`;
+                        });
+                    }
+                    if (data.insiders) {
+                        data.insiders.forEach(name => {
+                            html += `<div class="search-result-item" onclick="window.location='/insider/${encodeURIComponent(name)}'">${name}</div>`;
+                        });
+                    }
+                    if (!html) html = '<div class="search-result-item" style="color:#94a3b8;">No results</div>';
+                    results.innerHTML = html;
+                    results.classList.add('open');
+                });
+            }, 300);
+        });
+
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.topbar-right')) document.getElementById('searchResults').classList.remove('open');
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+        document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+    </script>
+</body>
+</html>

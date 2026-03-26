@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ ticker }} - OpenInsider Intelligence</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+
+        .topbar {
+            background: #0f172a; color: white; padding: 18px 32px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        }
+        .topbar-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+        .topbar-title span { color: #34d399; }
+        .back-link { color: #94a3b8; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        .back-link:hover { color: white; }
+
+        .main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+        .company-header { margin-bottom: 24px; }
+        .company-header h1 { font-size: 2rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 12px; }
+        .ticker-badge { background: #059669; color: white; padding: 4px 14px; border-radius: 8px; font-size: 1rem; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-card .value { font-size: 1.5rem; font-weight: 800; color: #0f172a; }
+        .stat-card .label { font-size: 0.78rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        .card {
+            background: white; border-radius: 14px; padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px;
+        }
+        .card-title { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+        .card-subtitle { font-size: 0.88rem; color: #94a3b8; margin-bottom: 16px; }
+
+        .chart-container { height: 480px; position: relative; }
+        .chart-loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #94a3b8; font-size: 0.95rem;
+        }
+
+        .signal-card {
+            background: white; border-radius: 14px; padding: 20px; margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 4px solid #e2e8f0;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .signal-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-1px); }
+        .signal-card.strength-high { border-left-color: #059669; }
+        .signal-card.strength-mid { border-left-color: #f59e0b; }
+        .signal-card.strength-low { border-left-color: #94a3b8; }
+
+        .signal-headline { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .signal-detail { font-size: 0.9rem; color: #475569; margin-bottom: 10px; }
+        .signal-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        .meta-tag { font-size: 0.78rem; padding: 3px 10px; border-radius: 6px; font-weight: 600; }
+        .tag-buy { background: #dcfce7; color: #166534; }
+        .tag-sell { background: #fee2e2; color: #991b1b; }
+        .tag-score-high { background: #dcfce7; color: #166534; }
+        .tag-score-mid { background: #fef9c3; color: #854d0e; }
+        .tag-score-low { background: #f1f5f9; color: #64748b; }
+        .tag-ceo { background: #dbeafe; color: #1e40af; }
+        .tag-date { background: #f1f5f9; color: #475569; }
+
+        .period-btns { display: flex; gap: 6px; margin-bottom: 12px; }
+        .period-btn {
+            padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 8px;
+            background: white; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #64748b;
+            transition: all 0.2s;
+        }
+        .period-btn.active { background: #0f172a; color: white; border-color: #0f172a; }
+        .period-btn:hover:not(.active) { background: #f1f5f9; }
+
+        .insider-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 10px; margin: 4px; font-size: 0.88rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .insider-chip:hover { background: #f0fdf4; border-color: #34d399; }
+        .insider-chip .name { font-weight: 600; }
+        .insider-chip .trades { color: #94a3b8; font-size: 0.8rem; }
+
+        @media (max-width: 768px) {
+            .topbar { padding: 14px 16px; }
+            .main { padding: 16px 12px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .chart-container { height: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-title">Open<span>Insider</span> Intelligence</div>
+        <a href="/" class="back-link">Back to Dashboard</a>
+    </div>
+
+    <div class="main">
+        <div class="company-header">
+            <h1>
+                <span id="companyName">Loading...</span>
+                <span class="ticker-badge">{{ ticker }}</span>
+            </h1>
+        </div>
+
+        <div class="stats-row" id="statsRow"></div>
+
+        <!-- Main Price Chart -->
+        <div class="card">
+            <div class="card-title">Stock Price with Insider Trades</div>
+            <div class="card-subtitle">Green triangles = insider purchases, red triangles = insider sales. Vertical dashed lines mark significant trades. Hover for details.</div>
+            <div class="period-btns">
+                <button class="period-btn" data-period="3mo">3M</button>
+                <button class="period-btn" data-period="6mo">6M</button>
+                <button class="period-btn active" data-period="1y">1Y</button>
+                <button class="period-btn" data-period="2y">2Y</button>
+                <button class="period-btn" data-period="5y">5Y</button>
+            </div>
+            <div class="chart-container" id="priceChartContainer">
+                <div class="chart-loading" id="priceChartLoading">Loading price data...</div>
+                <div id="priceChart" style="height:100%;width:100%;"></div>
+            </div>
+        </div>
+
+        <!-- Volume Chart -->
+        <div class="card">
+            <div class="card-title">Trading Volume</div>
+            <div class="card-subtitle">Daily trading volume with insider activity highlighted.</div>
+            <div id="volumeChart" style="height:200px;"></div>
+        </div>
+
+        <!-- Price Performance After Insider Trades -->
+        <div class="card">
+            <div class="card-title">What Happened After Insider Trades?</div>
+            <div class="card-subtitle">Forward returns after each insider purchase. Green = price went up, red = price went down.</div>
+            <div id="returnsChart" style="height:320px;"></div>
+        </div>
+
+        <!-- Insider Filings -->
+        <div class="card">
+            <div class="card-title">All Insider Trades</div>
+            <div class="card-subtitle">Every SEC Form 4 filing for this company, described in plain English.</div>
+            <div id="filingsContainer"></div>
+        </div>
+
+        <!-- Insider Roster -->
+        <div class="card">
+            <div class="card-title">Insider Roster</div>
+            <div class="card-subtitle">Who's trading at this company.</div>
+            <div id="rosterContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const TICKER = {{ ticker | tojson }};
+        let priceData = [];
+        let filingData = [];
+
+        function formatMoney(val) {
+            if (!val) return '$0';
+            if (val >= 1e9) return '$' + (val / 1e9).toFixed(1) + 'B';
+            if (val >= 1e6) return '$' + (val / 1e6).toFixed(1) + 'M';
+            if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+            return '$' + Number(val).toLocaleString();
+        }
+
+        function isBuy(t) { return t && t.toUpperCase().startsWith('P'); }
+
+        function roleLabel(title) {
+            if (!title) return '';
+            const t = title.toLowerCase();
+            if (t.includes('ceo') || t.includes('chief executive')) return 'CEO';
+            if (t.includes('cfo') || t.includes('chief financial')) return 'CFO';
+            if (t.includes('coo') || t.includes('chief operating')) return 'COO';
+            if (t.includes('president') || t.includes('pres')) return 'President';
+            if (t.includes('director')) return 'Director';
+            if (t.includes('vp') || t.includes('vice president')) return 'VP';
+            return title.length > 25 ? title.substring(0, 25) + '...' : title;
+        }
+
+        function relativeDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+            if (diff === 0) return 'today';
+            if (diff === 1) return 'yesterday';
+            if (diff < 7) return diff + ' days ago';
+            if (diff < 30) return Math.floor(diff / 7) + 'w ago';
+            if (diff < 365) return Math.floor(diff / 30) + 'mo ago';
+            return dateStr.substring(0, 10);
+        }
+
+        function scoreClass(score) {
+            if (score === null || score === undefined) return 'tag-score-low';
+            return score >= 60 ? 'tag-score-high' : score >= 40 ? 'tag-score-mid' : 'tag-score-low';
+        }
+
+        function strengthClass(score) {
+            if (score === null || score === undefined) return '';
+            return score >= 60 ? 'strength-high' : score >= 40 ? 'strength-mid' : 'strength-low';
+        }
+
+        // Find the closest price on or before a given date
+        function findPrice(date) {
+            if (!priceData.length) return null;
+            const target = date.substring(0, 10);
+            for (let i = priceData.length - 1; i >= 0; i--) {
+                if (priceData[i].date <= target) return priceData[i].close;
+            }
+            return priceData[0].close;
+        }
+
+        // Period buttons
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                loadPriceChart(this.dataset.period);
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load summary + filings in parallel
+            Promise.all([
+                fetch(`/api/company/${TICKER}/summary`).then(r => r.json()),
+                fetch(`/api/company/${TICKER}/timeline`).then(r => r.json()),
+            ]).then(([summary, timeline]) => {
+                renderSummary(summary);
+                filingData = timeline.filings || [];
+                renderFilings(filingData);
+                renderRoster(filingData);
+                // Now load price chart (this may take a moment)
+                loadPriceChart('1y');
+            });
+        });
+
+        function renderSummary(s) {
+            if (s.company_name) document.getElementById('companyName').textContent = s.company_name;
+
+            const stats = [
+                { value: s.total_filings || 0, label: 'Total Filings' },
+                { value: s.total_buys || 0, label: 'Purchases' },
+                { value: s.total_sells || 0, label: 'Sales' },
+                { value: formatMoney(s.total_buy_value), label: 'Total Buy Value' },
+                { value: s.unique_insiders || 0, label: 'Unique Insiders' },
+                { value: s.max_score ? Math.round(s.max_score) + '/100' : 'N/A', label: 'Top Score' }
+            ];
+
+            document.getElementById('statsRow').innerHTML = stats.map(st => `
+                <div class="stat-card">
+                    <div class="value">${st.value}</div>
+                    <div class="label">${st.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function loadPriceChart(period) {
+            document.getElementById('priceChartLoading').style.display = 'block';
+
+            fetch(`/api/company/${TICKER}/price-history?period=${period}`).then(r => r.json()).then(data => {
+                document.getElementById('priceChartLoading').style.display = 'none';
+                priceData = data.prices || [];
+
+                if (priceData.length === 0) {
+                    document.getElementById('priceChart').innerHTML =
+                        '<div style="text-align:center; padding:60px; color:#94a3b8;">No price data available for ' + TICKER + '.</div>';
+                    document.getElementById('volumeChart').innerHTML = '';
+                    return;
+                }
+
+                renderPriceChart();
+                renderVolumeChart();
+                renderReturnsChart();
+            }).catch(() => {
+                document.getElementById('priceChartLoading').style.display = 'none';
+                document.getElementById('priceChart').innerHTML =
+                    '<div style="text-align:center; padding:60px; color:#94a3b8;">Failed to load price data.</div>';
+            });
+        }
+
+        function renderPriceChart() {
+            const dates = priceData.map(p => p.date);
+            const closes = priceData.map(p => p.close);
+            const startDate = dates[0];
+            const endDate = dates[dates.length - 1];
+
+            // Filter filings within the price data range
+            const visibleFilings = filingData.filter(f => {
+                const d = (f.trade_date || f.filing_date || '').substring(0, 10);
+                return d >= startDate && d <= endDate;
+            });
+
+            const buys = visibleFilings.filter(f => isBuy(f.trade_type));
+            const sells = visibleFilings.filter(f => !isBuy(f.trade_type));
+
+            // Main price line
+            const traces = [{
+                x: dates,
+                y: closes,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Price',
+                line: { color: '#334155', width: 2 },
+                hovertemplate: '%{x}<br>$%{y:.2f}<extra></extra>'
+            }];
+
+            // Buy markers - plotted on the price line
+            if (buys.length > 0) {
+                traces.push({
+                    x: buys.map(f => (f.trade_date || f.filing_date).substring(0, 10)),
+                    y: buys.map(f => f.price || findPrice(f.trade_date || f.filing_date)),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Purchases',
+                    marker: {
+                        symbol: 'triangle-up',
+                        color: '#059669',
+                        size: buys.map(f => Math.min(18, Math.max(10, Math.log10((f.value || 1000) + 1) * 3))),
+                        line: { color: 'white', width: 1.5 }
+                    },
+                    text: buys.map(f => {
+                        const role = roleLabel(f.title);
+                        return `<b>${role ? role + ' ' : ''}${f.insider_name}</b><br>` +
+                               `Bought ${formatMoney(f.value)}<br>` +
+                               `at $${f.price || '?'}/share<br>` +
+                               `Score: ${f.deterministic_score ? Math.round(f.deterministic_score) : 'N/A'}`;
+                    }),
+                    hovertemplate: '%{text}<extra>PURCHASE</extra>'
+                });
+            }
+
+            // Sell markers
+            if (sells.length > 0) {
+                traces.push({
+                    x: sells.map(f => (f.trade_date || f.filing_date).substring(0, 10)),
+                    y: sells.map(f => f.price || findPrice(f.trade_date || f.filing_date)),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Sales',
+                    marker: {
+                        symbol: 'triangle-down',
+                        color: '#dc2626',
+                        size: sells.map(f => Math.min(18, Math.max(10, Math.log10((f.value || 1000) + 1) * 3))),
+                        line: { color: 'white', width: 1.5 }
+                    },
+                    text: sells.map(f => {
+                        const role = roleLabel(f.title);
+                        return `<b>${role ? role + ' ' : ''}${f.insider_name}</b><br>` +
+                               `Sold ${formatMoney(f.value)}<br>` +
+                               `at $${f.price || '?'}/share<br>` +
+                               `Score: ${f.deterministic_score ? Math.round(f.deterministic_score) : 'N/A'}`;
+                    }),
+                    hovertemplate: '%{text}<extra>SALE</extra>'
+                });
+            }
+
+            // Vertical lines for significant trades (score >= 50 or value >= $500K)
+            const shapes = [];
+            const annotations = [];
+            visibleFilings.forEach(f => {
+                const isSignificant = (f.deterministic_score && f.deterministic_score >= 50) || (f.value && f.value >= 500000);
+                if (!isSignificant) return;
+
+                const d = (f.trade_date || f.filing_date).substring(0, 10);
+                const buy = isBuy(f.trade_type);
+                const role = roleLabel(f.title);
+
+                shapes.push({
+                    type: 'line',
+                    x0: d, x1: d,
+                    y0: 0, y1: 1,
+                    yref: 'paper',
+                    line: {
+                        color: buy ? 'rgba(5, 150, 105, 0.3)' : 'rgba(220, 38, 38, 0.3)',
+                        width: 2,
+                        dash: 'dot'
+                    }
+                });
+
+                annotations.push({
+                    x: d,
+                    y: 1.02,
+                    yref: 'paper',
+                    text: `${buy ? 'BUY' : 'SELL'} ${formatMoney(f.value)}${role ? ' (' + role + ')' : ''}`,
+                    showarrow: false,
+                    font: {
+                        size: 9,
+                        color: buy ? '#059669' : '#dc2626',
+                        family: 'Inter'
+                    },
+                    textangle: -45
+                });
+            });
+
+            Plotly.newPlot('priceChart', traces, {
+                xaxis: {
+                    title: '',
+                    gridcolor: '#f1f5f9',
+                    type: 'date',
+                    rangeslider: { visible: false }
+                },
+                yaxis: {
+                    title: 'Price ($)',
+                    gridcolor: '#f1f5f9',
+                    tickprefix: '$'
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { family: 'Inter, sans-serif', color: '#1e293b', size: 12 },
+                margin: { t: 40, r: 20, b: 50, l: 60 },
+                hovermode: 'closest',
+                legend: { orientation: 'h', y: -0.12, font: { size: 11 } },
+                shapes: shapes,
+                annotations: annotations
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderVolumeChart() {
+            const dates = priceData.map(p => p.date);
+            const volumes = priceData.map(p => p.volume);
+            const startDate = dates[0];
+            const endDate = dates[dates.length - 1];
+
+            // Color bars near insider trade dates
+            const tradeDates = new Set(
+                filingData
+                    .filter(f => {
+                        const d = (f.trade_date || f.filing_date || '').substring(0, 10);
+                        return d >= startDate && d <= endDate;
+                    })
+                    .map(f => (f.trade_date || f.filing_date).substring(0, 10))
+            );
+
+            const colors = dates.map(d => tradeDates.has(d) ? '#059669' : '#cbd5e1');
+
+            Plotly.newPlot('volumeChart', [{
+                x: dates,
+                y: volumes,
+                type: 'bar',
+                marker: { color: colors },
+                hovertemplate: '%{x}<br>Volume: %{y:,.0f}<extra></extra>'
+            }], {
+                xaxis: { gridcolor: '#f1f5f9', type: 'date' },
+                yaxis: { title: 'Volume', gridcolor: '#f1f5f9' },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { family: 'Inter', color: '#1e293b', size: 11 },
+                margin: { t: 10, r: 20, b: 40, l: 60 },
+                bargap: 0.1
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderReturnsChart() {
+            // Show forward returns for each buy filing
+            const buyFilings = filingData.filter(f => isBuy(f.trade_type) && f.price);
+
+            if (buyFilings.length === 0 || priceData.length === 0) {
+                document.getElementById('returnsChart').innerHTML =
+                    '<div style="text-align:center; padding:40px; color:#94a3b8;">Not enough data to show forward returns.</div>';
+                return;
+            }
+
+            const latestPrice = priceData[priceData.length - 1].close;
+            const latestDate = priceData[priceData.length - 1].date;
+
+            const labels = [];
+            const returns = [];
+            const colors = [];
+            const hoverTexts = [];
+
+            buyFilings.forEach(f => {
+                const tradeDate = (f.trade_date || f.filing_date).substring(0, 10);
+                const buyPrice = f.price;
+                const currentPrice = latestPrice;
+                const ret = ((currentPrice - buyPrice) / buyPrice * 100);
+                const role = roleLabel(f.title);
+
+                labels.push(`${role || f.insider_name.split(' ')[0]}\n${relativeDate(tradeDate)}`);
+                returns.push(Math.round(ret * 10) / 10);
+                colors.push(ret >= 0 ? '#059669' : '#dc2626');
+                hoverTexts.push(
+                    `<b>${role ? role + ' ' : ''}${f.insider_name}</b><br>` +
+                    `Bought at $${buyPrice.toFixed(2)} on ${tradeDate}<br>` +
+                    `Now: $${currentPrice.toFixed(2)}<br>` +
+                    `Return: ${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%`
+                );
+            });
+
+            Plotly.newPlot('returnsChart', [{
+                x: labels,
+                y: returns,
+                type: 'bar',
+                marker: { color: colors, cornerradius: 4 },
+                text: returns.map(r => (r >= 0 ? '+' : '') + r + '%'),
+                textposition: 'outside',
+                textfont: { size: 11, family: 'Inter' },
+                hovertext: hoverTexts,
+                hovertemplate: '%{hovertext}<extra></extra>'
+            }], {
+                xaxis: { tickangle: -30, tickfont: { size: 10 } },
+                yaxis: {
+                    title: 'Return (%)',
+                    gridcolor: '#f1f5f9',
+                    zeroline: true,
+                    zerolinecolor: '#94a3b8',
+                    zerolinewidth: 1
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { family: 'Inter', color: '#1e293b' },
+                margin: { t: 20, r: 20, b: 80, l: 50 },
+                shapes: [{
+                    type: 'line', x0: -0.5, x1: labels.length - 0.5,
+                    y0: 0, y1: 0,
+                    line: { color: '#94a3b8', width: 1, dash: 'dot' }
+                }]
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderFilings(filings) {
+            if (!filings || filings.length === 0) {
+                document.getElementById('filingsContainer').innerHTML =
+                    '<div style="text-align:center; padding:40px; color:#94a3b8;">No filings found.</div>';
+                return;
+            }
+
+            document.getElementById('filingsContainer').innerHTML = filings.map(f => {
+                const buy = isBuy(f.trade_type);
+                const role = roleLabel(f.title);
+                const name = f.insider_name || 'Unknown';
+                const verb = buy ? 'bought' : 'sold';
+                const strength = strengthClass(f.deterministic_score);
+
+                let headline = '';
+                if (role && ['CEO', 'CFO', 'COO', 'President'].includes(role)) {
+                    headline = `${role} ${name} ${verb} ${formatMoney(f.value)}`;
+                } else {
+                    headline = `${name} (${role || 'insider'}) ${verb} ${formatMoney(f.value)}`;
+                }
+
+                let detail = [];
+                if (f.price) detail.push(`at $${Number(f.price).toFixed(2)}/share`);
+                if (f.qty) detail.push(`${Number(f.qty).toLocaleString()} shares`);
+                if (f.delta_own && Math.abs(f.delta_own) > 1) {
+                    detail.push(buy ?
+                        `increasing their stake by ${Math.abs(f.delta_own).toFixed(0)}%` :
+                        `reducing their stake by ${Math.abs(f.delta_own).toFixed(0)}%`);
+                }
+
+                return `
+                    <div class="signal-card ${strength}">
+                        <div class="signal-headline">${headline}</div>
+                        <div class="signal-detail">${detail.join(' -- ')}</div>
+                        <div class="signal-meta">
+                            <span class="meta-tag ${buy ? 'tag-buy' : 'tag-sell'}">${buy ? 'PURCHASE' : 'SALE'}</span>
+                            <span class="meta-tag ${scoreClass(f.deterministic_score)}">Score: ${f.deterministic_score !== null ? Math.round(f.deterministic_score) : 'N/A'}</span>
+                            ${role ? `<span class="meta-tag tag-ceo">${role}</span>` : ''}
+                            <span class="meta-tag tag-date">${relativeDate(f.trade_date || f.filing_date)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderRoster(filings) {
+            if (!filings || filings.length === 0) {
+                document.getElementById('rosterContainer').innerHTML =
+                    '<div style="text-align:center; padding:40px; color:#94a3b8;">No insiders found.</div>';
+                return;
+            }
+
+            const insiderMap = {};
+            filings.forEach(f => {
+                if (!insiderMap[f.insider_name]) {
+                    insiderMap[f.insider_name] = { buys: 0, sells: 0, total_value: 0, title: f.title, last_date: f.filing_date };
+                }
+                const ins = insiderMap[f.insider_name];
+                if (isBuy(f.trade_type)) ins.buys++;
+                else ins.sells++;
+                ins.total_value += f.value || 0;
+                if (f.filing_date > ins.last_date) ins.last_date = f.filing_date;
+            });
+
+            const roster = Object.entries(insiderMap).sort((a, b) => b[1].total_value - a[1].total_value);
+
+            document.getElementById('rosterContainer').innerHTML = roster.map(([name, data]) => {
+                const role = roleLabel(data.title);
+                return `
+                    <span class="insider-chip" onclick="window.location='/insider/${encodeURIComponent(name)}'">
+                        <span class="name">${role ? role + ' ' : ''}${name}</span>
+                        <span class="trades">${data.buys}B / ${data.sells}S -- ${formatMoney(data.total_value)}</span>
+                    </span>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
