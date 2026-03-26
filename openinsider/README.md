@@ -66,6 +66,31 @@ SQLite with WAL mode. Seven tables:
 
 ---
 
+## Setup
+
+### Prerequisites
+
+- Python 3.9+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+### macOS / Linux
+
+```bash
+# From the repo root:
+uv sync
+source .venv/bin/activate
+```
+
+### Windows
+
+```powershell
+# From the repo root:
+uv sync
+.venv\Scripts\activate
+```
+
+---
+
 ## Quick Start
 
 ```bash
