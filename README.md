@@ -2,11 +2,39 @@
 
 A collection of personal finance and market analysis tools.
 
+## Prerequisites
+
+- Python 3.9+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+
 ## Setup
 
+### macOS / Linux
+
 ```bash
-pip install poetry
-poetry install --no-root
+# 1. Clone the repo
+git clone https://github.com/<your-username>/gold_price_scraper.git
+cd gold_price_scraper
+
+# 2. Install dependencies
+uv sync
+
+# 3. Activate the virtual environment
+source .venv/bin/activate
+```
+
+### Windows
+
+```powershell
+# 1. Clone the repo
+git clone https://github.com/<your-username>/gold_price_scraper.git
+cd gold_price_scraper
+
+# 2. Install dependencies
+uv sync
+
+# 3. Activate the virtual environment
+.venv\Scripts\activate
 ```
 
 ---
@@ -66,7 +94,7 @@ poetry install --no-root
 │   ├── scripts/                   #   Shell wrappers
 │   └── data/                      #   SQLite database (gitignored)
 │
-├── pyproject.toml                 # Poetry dependencies
+├── pyproject.toml                 # Project dependencies
 └── .gitignore
 ```
 
@@ -88,7 +116,7 @@ python tatra_banka_interest_rates/scrape_tatrabanka_mortgage.py
 # OpenInsider — scrape + score + dashboard
 python -m openinsider.ingest              # Scrape filings
 python -m openinsider.pipeline            # Full pipeline (ingest+enrich+score+cluster)
-python -m openinsider.web.app              # http://localhost:5002
+python -m openinsider.web.app             # http://localhost:5002 (or --port 5003 if 5002 is in use)
 ```
 
 ## Environment Variables (OpenInsider only)
