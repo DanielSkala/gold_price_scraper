@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import json
 from datetime import datetime
@@ -20,8 +20,51 @@ def get_expenses_data():
 
     return all_expenses
 
-def get_monthly_data():
+
+def compute_outlier_indices(expenses):
+    """Detect outlier transactions using IQR method per category.
+
+    A transaction is an outlier if:
+    - Its amount exceeds Q3 + 1.5*IQR AND is at least €100, OR
+    - Its amount is >= 4x the category median AND at least €100
+      (fallback for small categories where IQR is too wide)
+    """
+    category_groups = defaultdict(list)
+    for i, tx in enumerate(expenses):
+        category_groups[tx['category']].append((i, tx['amount']))
+
+    outlier_indices = set()
+
+    for category, items in category_groups.items():
+        amounts = sorted(amount for _, amount in items)
+        n = len(amounts)
+        if n < 3:
+            continue
+
+        median = amounts[n // 2]
+        q1 = amounts[n // 4]
+        q3 = amounts[(3 * n) // 4]
+        iqr = q3 - q1
+        iqr_bound = q3 + 1.5 * iqr
+        median_bound = median * 4
+
+        for idx, amount in items:
+            if amount >= 100 and (amount > iqr_bound or amount > median_bound):
+                outlier_indices.add(idx)
+
+    return outlier_indices
+
+
+def _should_exclude_outliers():
+    return request.args.get('exclude_outliers') == '1'
+
+
+def get_monthly_data(exclude_outliers=False):
     all_expenses = get_expenses_data()
+    if exclude_outliers:
+        outlier_indices = compute_outlier_indices(all_expenses)
+        all_expenses = [tx for i, tx in enumerate(all_expenses) if i not in outlier_indices]
+
     monthly_sums = defaultdict(lambda: defaultdict(float))
 
     for tx in all_expenses:
@@ -36,7 +79,7 @@ def dashboard():
 
 @app.route('/api/monthly-data')
 def monthly_data():
-    monthly_sums, _ = get_monthly_data()
+    monthly_sums, _ = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     # Convert to format suitable for charts
     months = sorted(monthly_sums.keys())
@@ -60,7 +103,7 @@ def monthly_data():
 
 @app.route('/api/category-totals')
 def category_totals():
-    monthly_sums, _ = get_monthly_data()
+    monthly_sums, _ = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     totals = {}
     for category in CATEGORY_ORDER:
@@ -74,7 +117,7 @@ def category_totals():
 
 @app.route('/api/category-averages')
 def category_averages():
-    monthly_sums, _ = get_monthly_data()
+    monthly_sums, _ = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     if not monthly_sums:
         return jsonify({})
@@ -111,6 +154,9 @@ def category_averages():
 @app.route('/api/transactions')
 def transactions():
     all_expenses = get_expenses_data()
+    if _should_exclude_outliers():
+        outlier_indices = compute_outlier_indices(all_expenses)
+        all_expenses = [tx for i, tx in enumerate(all_expenses) if i not in outlier_indices]
 
     # Convert datetime objects to strings for JSON serialization
     transactions_json = []
@@ -126,7 +172,7 @@ def transactions():
 
 @app.route('/api/trends')
 def trends():
-    monthly_sums, _ = get_monthly_data()
+    monthly_sums, _ = get_monthly_data(exclude_outliers=_should_exclude_outliers())
     months = sorted(monthly_sums.keys())
 
     if len(months) < 2:
@@ -158,7 +204,7 @@ def categories():
 @app.route('/api/current-month-details')
 @app.route('/api/current-month-details/<month>')
 def current_month_details(month=None):
-    monthly_sums, all_expenses = get_monthly_data()
+    monthly_sums, all_expenses = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     if not monthly_sums:
         return jsonify({})
@@ -202,6 +248,9 @@ def current_month_details(month=None):
 @app.route('/api/category-transactions/<category>')
 def category_transactions(category):
     all_expenses = get_expenses_data()
+    if _should_exclude_outliers():
+        outlier_indices = compute_outlier_indices(all_expenses)
+        all_expenses = [tx for i, tx in enumerate(all_expenses) if i not in outlier_indices]
 
     # Filter transactions by category
     category_txs = [
@@ -228,7 +277,7 @@ def category_transactions(category):
 @app.route('/api/current-month-category-transactions/<category>')
 @app.route('/api/current-month-category-transactions/<category>/<month>')
 def current_month_category_transactions(category, month=None):
-    monthly_sums, all_expenses = get_monthly_data()
+    monthly_sums, all_expenses = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     if not monthly_sums:
         return jsonify({'category': category, 'transactions': [], 'total_amount': 0, 'transaction_count': 0})
@@ -261,6 +310,27 @@ def current_month_category_transactions(category, month=None):
         'total_amount': sum(tx['amount'] for tx in category_txs),
         'transaction_count': len(transactions_json)
     })
+
+@app.route('/api/outliers')
+def outliers():
+    all_expenses = get_expenses_data()
+    outlier_indices = compute_outlier_indices(all_expenses)
+
+    outlier_txs = []
+    for i in sorted(outlier_indices):
+        tx = all_expenses[i].copy()
+        tx['date'] = tx['date'].strftime('%Y-%m-%d')
+        outlier_txs.append(tx)
+
+    outlier_txs.sort(key=lambda x: x['date'], reverse=True)
+    total = sum(tx['amount'] for tx in outlier_txs)
+
+    return jsonify({
+        'outliers': outlier_txs,
+        'total_amount': total,
+        'count': len(outlier_txs)
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

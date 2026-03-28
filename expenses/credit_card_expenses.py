@@ -18,12 +18,17 @@ CATEGORIES = {
         "terno",
         "stary otec",
         "ah",
-        "albert hein",
+        "albert hein"
         "jumbo",
         "spar",
         "tesco",
         "pekaren",
         "albert heijn",
+        "biedronka",
+        "kaufland",
+        "nespresso",
+        "kruidvat",
+        "dm"
     ],
     "eating out": [
         "bowls",
@@ -62,7 +67,16 @@ CATEGORIES = {
         "srdcovka",
         "bombay",
         "starohajska",
-        "martinus"
+        "martinus",
+        "mogg",
+        "pulitzer",
+        "kantyna",
+        "lacinka",
+        "bistro",
+        "food",
+        "cajovna v podzemi",
+        "masala darbar",
+        "pizzeria"
     ],
     "bolt": ["bolt", "taxi"],
     "car wash": ["mobydick", "pasadur", "lkq"],
@@ -74,8 +88,10 @@ CATEGORIES = {
         "airbnb",
         "booking",
         "hotels.com",
+        "pidlitacka",
+        "rjcz-vlak"
     ],
-    "parking": ["parkscheinautomat", "parkovis", "parkovanie", "parking", "easypark"],
+    "parking": ["parkscheinautomat", "parkovis", "parkovanie", "parking", "easypark", "parkdots"],
     "oil partner": ["oil"]
 }
 
