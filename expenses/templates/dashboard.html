@@ -557,6 +557,37 @@
             .stats-grid { grid-template-columns: 1fr; }
         }
 
+        /* ── Gold ───────────────────────────────────── */
+        .gold-holding {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 4px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.85rem;
+            align-items: center;
+        }
+
+        .gold-holding:hover { background: var(--bg); }
+
+        .gold-holding-header {
+            font-weight: 600;
+            color: var(--text-3);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .gold-holding-header:hover { background: transparent; }
+
+        .gold-total {
+            border-top: 2px solid var(--border);
+            font-weight: 600;
+            background: var(--bg);
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+
         /* ── Scrollbar ──────────────────────────────── */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -571,6 +602,7 @@
         <div class="topbar-nav">
             <button class="view-btn active" onclick="switchView('overview')">Overview</button>
             <button class="view-btn" onclick="switchView('monthly')">Monthly</button>
+            <button class="view-btn" onclick="switchView('gold')">Gold</button>
             <select id="monthSelector" onchange="handleMonthChange()"></select>
             <button class="outlier-toggle" id="outlierToggle" onclick="toggleOutliers()">
                 <i class="fas fa-filter" style="margin-right: 4px;"></i><span id="outlierToggleText">Hide Outliers</span>
@@ -673,6 +705,44 @@
             </div>
         </div>
 
+        <!-- Gold View -->
+        <div class="view-container" id="goldView">
+            <div class="stats-grid" id="goldStatsGrid">
+                <div class="loading"><i class="fas fa-spinner"></i><p>Loading gold data...</p></div>
+            </div>
+
+            <div class="chart-container" style="margin-bottom: 24px;">
+                <div class="chart-header">
+                    <h3 class="chart-title">Gold Spot Price (EUR/oz)</h3>
+                    <div class="chart-filters" id="goldTimeframeFilters">
+                        <button class="filter-btn" onclick="changeGoldTimeframe('1mo', this)">1M</button>
+                        <button class="filter-btn" onclick="changeGoldTimeframe('3mo', this)">3M</button>
+                        <button class="filter-btn" onclick="changeGoldTimeframe('6mo', this)">6M</button>
+                        <button class="filter-btn" onclick="changeGoldTimeframe('1y', this)">1Y</button>
+                        <button class="filter-btn active" onclick="changeGoldTimeframe('2y', this)">2Y</button>
+                        <button class="filter-btn" onclick="changeGoldTimeframe('5y', this)">5Y</button>
+                        <button class="filter-btn" onclick="changeGoldTimeframe('max', this)">MAX</button>
+                    </div>
+                </div>
+                <div id="goldSpotChart" style="height: 400px;"></div>
+            </div>
+
+            <div class="chart-container" style="margin-bottom: 24px;">
+                <div class="chart-header">
+                    <h3 class="chart-title">Bar Premiums by Weight</h3>
+                    <div style="font-size: 0.78rem; color: var(--text-3);">Source: zlataky.sk</div>
+                </div>
+                <div id="goldPremiumChart" style="height: 380px;"></div>
+            </div>
+
+            <div class="transactions-section">
+                <div class="transactions-header">
+                    <h3 class="chart-title">Portfolio Holdings</h3>
+                </div>
+                <div id="goldPortfolioTable"></div>
+            </div>
+        </div>
+
         <!-- Side Panel -->
         <div class="side-panel" id="sidePanel">
             <div class="side-panel-header">
@@ -713,6 +783,11 @@
         let currentFilteredTransactions = null;
         let excludeOutliers = false;
         let outlierData = null;
+        let goldSpotData = null;
+        let goldPremiumData = null;
+        let goldPortfolioData = null;
+        let goldLoaded = false;
+        let goldTimeframe = '2y';
 
         // ── Data Loading ───────────────────────────────
         document.addEventListener('DOMContentLoaded', function() {
@@ -784,19 +859,31 @@
             const monthSelector = document.getElementById('monthSelector');
             monthSelector.style.display = view === 'monthly' ? 'block' : 'none';
 
+            // Hide outlier toggle on gold view (not relevant)
+            document.getElementById('outlierToggle').style.display = view === 'gold' ? 'none' : '';
+
             document.querySelectorAll('.view-container').forEach(c => c.classList.remove('active'));
             document.getElementById(view + 'View').classList.add('active');
             currentView = view;
             transactionsDisplayed = 50;
-            renderStats();
+
+            // Show/hide expense stats grid (gold has its own)
+            document.getElementById('statsGrid').style.display = view === 'gold' ? 'none' : '';
+            if (view !== 'gold') renderStats();
 
             // Re-render charts after view becomes visible so Plotly
             // can measure the container width correctly.
             setTimeout(() => {
                 if (view === 'overview') {
                     renderOverviewCharts();
-                } else {
+                } else if (view === 'monthly') {
                     renderMonthlyDetailCharts();
+                } else if (view === 'gold') {
+                    if (!goldLoaded) {
+                        loadGoldData();
+                    } else {
+                        renderGoldCharts();
+                    }
                 }
             }, 50);
         }
@@ -1317,6 +1404,284 @@
                 </table>
                 <div style="text-align:center;padding:14px;font-size:0.78rem;color:var(--text-3);">
                     ${showing.length} transactions &middot; ${new Date(currentMonthDetails.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </div>
+            `;
+        }
+
+        // ── Gold ───────────────────────────────────────
+        function loadGoldData() {
+            const fetches = [
+                fetch(`/api/gold/spot-history?period=${goldTimeframe}`).then(r => r.json()),
+            ];
+            // Only fetch premiums and portfolio on first load (they don't depend on timeframe)
+            if (!goldLoaded) {
+                fetches.push(fetch('/api/gold/premiums').then(r => r.json()));
+                fetches.push(fetch('/api/gold/portfolio').then(r => r.json()));
+            }
+
+            Promise.all(fetches).then(results => {
+                goldSpotData = results[0];
+                if (results.length > 1) {
+                    goldPremiumData = results[1];
+                    goldPortfolioData = results[2];
+                }
+                goldLoaded = true;
+                renderGoldCharts();
+            }).catch(err => {
+                console.error('Error loading gold data:', err);
+                document.getElementById('goldStatsGrid').innerHTML =
+                    '<div style="text-align:center;padding:40px;color:var(--red);grid-column:1/-1;">Failed to load gold data. Is yfinance working?</div>';
+            });
+        }
+
+        function changeGoldTimeframe(tf, btn) {
+            goldTimeframe = tf;
+            document.querySelectorAll('#goldTimeframeFilters .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadGoldData();
+        }
+
+        function renderGoldCharts() {
+            renderGoldStats();
+            renderGoldSpotChart();
+            renderGoldPremiumChart();
+            renderGoldPortfolioTable();
+        }
+
+        function renderGoldStats() {
+            if (!goldPortfolioData) return;
+            const p = goldPortfolioData;
+            const glColor = p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
+            const glSign = p.gain_loss >= 0 ? '+' : '';
+
+            document.getElementById('goldStatsGrid').innerHTML = `
+                <div class="stat-card" style="--stat-accent: #D4AF37">
+                    <div class="stat-label">Portfolio Value</div>
+                    <div class="stat-value">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+                    <div class="stat-sub">${p.total_weight_g}g total</div>
+                </div>
+                <div class="stat-card" style="--stat-accent: #D4AF37">
+                    <div class="stat-label">Total Cost</div>
+                    <div class="stat-value">€${p.total_cost.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+                    <div class="stat-sub">${p.items.length} purchases</div>
+                </div>
+                <div class="stat-card" style="--stat-accent: ${p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'}">
+                    <div class="stat-label">Gain / Loss</div>
+                    <div class="stat-value" style="color: ${glColor}">${glSign}€${Math.abs(p.gain_loss).toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+                    <div class="stat-trend ${p.gain_loss >= 0 ? 'trend-down' : 'trend-up'}">${glSign}${p.gain_loss_pct}%</div>
+                </div>
+                <div class="stat-card" style="--stat-accent: #D4AF37">
+                    <div class="stat-label">Spot Price</div>
+                    <div class="stat-value">€${p.current_spot_per_oz.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}/oz</div>
+                    <div class="stat-sub">€${p.current_spot_per_g.toFixed(2)}/g</div>
+                </div>
+            `;
+        }
+
+        function renderGoldSpotChart() {
+            if (!goldSpotData || !goldSpotData.dates) return;
+
+            const traces = [];
+
+            // Spot price line
+            traces.push({
+                x: goldSpotData.dates,
+                y: goldSpotData.prices_eur_oz,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Gold Spot (EUR/oz)',
+                line: { color: '#D4AF37', width: 2.5 },
+                hovertemplate: '<b>%{x}</b><br>€%{y:,.2f}/oz<extra></extra>',
+                fill: 'tozeroy',
+                fillcolor: 'rgba(212, 175, 55, 0.08)',
+            });
+
+            // Purchase markers
+            if (goldPortfolioData && goldPortfolioData.items) {
+                const buyDates = [];
+                const buyPrices = [];
+                const buyTexts = [];
+                const spotDates = [];
+                const spotPrices = [];
+
+                goldPortfolioData.items.forEach(item => {
+                    buyDates.push(item.date);
+                    buyPrices.push(item.cost_per_oz);
+                    const prem = item.premium_pct !== null ? `Premium: ${item.premium_pct}%` : '';
+                    buyTexts.push(`<b>${item.label}</b><br>${item.date}<br>Paid: €${item.cost.toLocaleString()}<br>€${item.cost_per_oz.toLocaleString()}/oz<br>${prem}<extra></extra>`);
+
+                    if (item.spot_at_purchase_oz) {
+                        spotDates.push(item.date);
+                        spotPrices.push(item.spot_at_purchase_oz);
+                    }
+                });
+
+                traces.push({
+                    x: buyDates,
+                    y: buyPrices,
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Purchases (price paid)',
+                    marker: { symbol: 'triangle-up', size: 14, color: '#ef4444', line: { width: 1, color: '#991b1b' } },
+                    hovertemplate: buyTexts,
+                });
+
+                if (spotDates.length) {
+                    traces.push({
+                        x: spotDates,
+                        y: spotPrices,
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: 'Spot at purchase',
+                        marker: { symbol: 'circle', size: 8, color: '#D4AF37', line: { width: 1, color: '#1c1917' } },
+                        hovertemplate: '<b>Spot at purchase</b><br>%{x}<br>€%{y:,.2f}/oz<extra></extra>',
+                    });
+                }
+            }
+
+            const shapes = (goldPortfolioData?.items || []).map(item => ({
+                type: 'line',
+                x0: item.date, x1: item.date,
+                y0: 0, y1: 1, yref: 'paper',
+                line: { color: 'rgba(239, 68, 68, 0.4)', width: 1.5, dash: 'dash' },
+            }));
+
+            Plotly.newPlot('goldSpotChart', traces, {
+                xaxis: { showgrid: false, tickfont: { size: 11 } },
+                yaxis: { title: 'EUR/oz', gridcolor: PLOTLY_GRID, tickfont: { size: 11 }, tickformat: ',.0f' },
+                plot_bgcolor: 'white', paper_bgcolor: 'white',
+                font: PLOTLY_FONT,
+                margin: { t: 10, r: 16, b: 50, l: 64 },
+                hovermode: 'x unified',
+                legend: { orientation: 'h', y: -0.18, x: 0.5, xanchor: 'center', font: { size: 11 } },
+                shapes: shapes,
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderGoldPremiumChart() {
+            if (!goldPremiumData || !goldPremiumData.rows) return;
+
+            const weights = goldPremiumData.weights;
+            const traces = [];
+
+            // Historical rows as faded lines
+            goldPremiumData.rows.forEach((row, i) => {
+                traces.push({
+                    x: weights,
+                    y: row,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { width: 1 },
+                    opacity: 0.1,
+                    connectgaps: true,
+                    showlegend: false,
+                    hoverinfo: 'skip',
+                });
+            });
+
+            // Average line
+            traces.push({
+                x: weights,
+                y: goldPremiumData.averages,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Average',
+                line: { color: '#ef4444', width: 2.5 },
+                marker: { size: 6 },
+                connectgaps: true,
+                hovertemplate: '<b>%{x}g</b><br>Avg premium: %{y:.1f}%<extra></extra>',
+            });
+
+            // Latest line
+            traces.push({
+                x: weights,
+                y: goldPremiumData.latest,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: `Latest (${goldPremiumData.latest_date})`,
+                line: { color: '#2563eb', width: 2.5 },
+                marker: { size: 6 },
+                connectgaps: true,
+                hovertemplate: '<b>%{x}g</b><br>Current premium: %{y:.1f}%<extra></extra>',
+            });
+
+            // Highlight lowest 3 current premiums
+            const validLatest = goldPremiumData.latest
+                .map((v, i) => v !== null ? { v, w: weights[i] } : null)
+                .filter(Boolean)
+                .sort((a, b) => a.v - b.v)
+                .slice(0, 3);
+
+            traces.push({
+                x: validLatest.map(d => d.w),
+                y: validLatest.map(d => d.v),
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Best deals',
+                marker: { color: '#D4AF37', size: 12, line: { width: 1.5, color: '#92711c' } },
+                hovertemplate: '<b>%{x}g</b><br>Premium: %{y:.1f}% ★<extra></extra>',
+            });
+
+            Plotly.newPlot('goldPremiumChart', traces, {
+                xaxis: {
+                    title: 'Bar Weight (g)',
+                    type: 'log',
+                    tickvals: weights,
+                    ticktext: goldPremiumData.weight_labels,
+                    tickfont: { size: 11 },
+                },
+                yaxis: { title: 'Premium (%)', gridcolor: PLOTLY_GRID, tickfont: { size: 11 }, dtick: 2.5 },
+                plot_bgcolor: 'white', paper_bgcolor: 'white',
+                font: PLOTLY_FONT,
+                margin: { t: 10, r: 16, b: 50, l: 56 },
+                legend: { orientation: 'h', y: -0.22, x: 0.5, xanchor: 'center', font: { size: 11 } },
+            }, { responsive: true, displayModeBar: false });
+        }
+
+        function renderGoldPortfolioTable() {
+            if (!goldPortfolioData || !goldPortfolioData.items) return;
+            const container = document.getElementById('goldPortfolioTable');
+            const p = goldPortfolioData;
+
+            container.innerHTML = `
+                <div class="gold-holding gold-holding-header">
+                    <div>Holding</div>
+                    <div style="text-align:right;">Cost</div>
+                    <div style="text-align:right;">Value Now</div>
+                    <div style="text-align:right;">Premium</div>
+                    <div style="text-align:right;">P&L</div>
+                </div>
+                ${p.items.map(item => {
+                    const glColor = item.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
+                    const glSign = item.gain_loss >= 0 ? '+' : '';
+                    return `
+                        <div class="gold-holding">
+                            <div>
+                                <div style="font-weight:500;">${item.label}</div>
+                                <div style="font-size:0.78rem;color:var(--text-3);">${new Date(item.date).toLocaleDateString()} &middot; ${item.weight_g}g</div>
+                            </div>
+                            <div style="text-align:right;font-family:'Newsreader',serif;">€${item.cost.toLocaleString()}</div>
+                            <div style="text-align:right;font-family:'Newsreader',serif;">€${item.value_now.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                            <div style="text-align:right;font-size:0.82rem;color:var(--text-2);">${item.premium_pct !== null ? item.premium_pct + '%' : '—'}</div>
+                            <div style="text-align:right;font-family:'Newsreader',serif;color:${glColor};font-weight:500;">
+                                ${glSign}€${Math.abs(item.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:400;">${glSign}${item.gain_loss_pct}%</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+                <div class="gold-holding gold-total">
+                    <div>
+                        <div style="font-weight:600;">Total</div>
+                        <div style="font-size:0.78rem;color:var(--text-3);">${p.total_weight_g}g</div>
+                    </div>
+                    <div style="text-align:right;font-family:'Newsreader',serif;">€${p.total_cost.toLocaleString()}</div>
+                    <div style="text-align:right;font-family:'Newsreader',serif;">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    <div></div>
+                    <div style="text-align:right;font-family:'Newsreader',serif;color:${p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600;">
+                        ${p.gain_loss >= 0 ? '+' : ''}€${Math.abs(p.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:500;">${p.gain_loss >= 0 ? '+' : ''}${p.gain_loss_pct}%</div>
+                    </div>
                 </div>
             `;
         }
