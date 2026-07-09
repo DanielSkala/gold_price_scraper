@@ -29,7 +29,12 @@
     <!-- Top Navigation Bar — 3 zones: brand · centered view switch · controls.
          The centered switch is locked in place regardless of the right-side controls. -->
     <nav class="topbar">
-        <div class="topbar-brand">Expenses <span>Analytics</span></div>
+        <div class="topbar-left">
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="App.toggleSidebar()" title="Data &amp; settings" aria-label="Open sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-brand">Expenses <span>Analytics</span></div>
+        </div>
         <div class="view-switch" id="viewSwitch">
             <span class="view-switch-slider" id="viewSwitchSlider"></span>
             <button class="view-btn active" data-view="overview" onclick="App.switchView('overview', event)">Overview</button>
@@ -46,6 +51,47 @@
             </button>
         </div>
     </nav>
+
+    <!-- Collapsible left sidebar: settings + expense-report management. -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="App.toggleSidebar()"></div>
+    <aside class="sidebar" id="sidebar" aria-hidden="true">
+        <div class="sidebar-head">
+            <h2 class="sidebar-title">Data &amp; settings</h2>
+            <button class="sidebar-close" onclick="App.toggleSidebar()" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="sidebar-scroll">
+            <!-- Settings -->
+            <section class="sidebar-section">
+                <h3 class="sidebar-section-title">Settings</h3>
+                <label class="sidebar-field">
+                    <span>Monthly budget goal</span>
+                    <div class="sidebar-goal">
+                        <span class="sidebar-goal-cur">€</span>
+                        <input type="number" id="sidebarGoal" min="0" step="50" inputmode="numeric">
+                    </div>
+                </label>
+                <label class="sidebar-field sidebar-field-row">
+                    <span>Dark mode</span>
+                    <button class="sidebar-switch" id="sidebarThemeSwitch" onclick="App.toggleTheme()" role="switch"><span></span></button>
+                </label>
+            </section>
+
+            <!-- Expense reports -->
+            <section class="sidebar-section">
+                <div class="sidebar-section-head">
+                    <h3 class="sidebar-section-title">Expense reports</h3>
+                    <span class="sidebar-count" id="reportsCount"></span>
+                </div>
+                <label class="report-upload" id="reportUpload">
+                    <input type="file" id="reportFile" accept=".csv" hidden>
+                    <i class="fas fa-plus"></i><span>Add expense report (CSV)</span>
+                </label>
+                <div class="report-upload-msg" id="reportUploadMsg"></div>
+                <div class="report-list" id="reportList"></div>
+            </section>
+        </div>
+    </aside>
 
     <div class="dashboard-container">
         <!-- Outlier Panel -->

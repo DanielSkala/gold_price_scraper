@@ -223,6 +223,131 @@
         .theme-toggle:hover { background: var(--border-light); color: var(--text); }
         .theme-toggle:active { transform: scale(0.92); }
 
+        /* ── Sidebar toggle (hamburger) + brand group ── */
+        .topbar-left { display: flex; align-items: center; gap: 12px; justify-self: start; }
+        .sidebar-toggle {
+            width: 34px; height: 34px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-2);
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .sidebar-toggle:hover { background: var(--border-light); color: var(--text); }
+
+        /* ── Collapsible sidebar drawer ─────────────── */
+        .sidebar-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(12,10,9,0.4);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 300;
+        }
+        .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 360px; max-width: 88vw;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            box-shadow: 4px 0 24px rgba(12,10,9,0.14);
+            transform: translateX(-102%);
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 301;
+            display: flex; flex-direction: column;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 22px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .sidebar-title { font-family: 'Newsreader', serif; font-size: 1.3rem; font-weight: 500; color: var(--text); }
+        .sidebar-close {
+            width: 32px; height: 32px; border-radius: 8px;
+            border: none; background: transparent; color: var(--text-3);
+            cursor: pointer; font-size: 1rem;
+        }
+        .sidebar-close:hover { background: var(--border-light); color: var(--text); }
+        .sidebar-scroll { overflow-y: auto; padding: 8px 22px 24px; }
+        .sidebar-section { padding: 16px 0; border-bottom: 1px solid var(--border-light); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar-section-head { display: flex; align-items: baseline; justify-content: space-between; }
+        .sidebar-section-title {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
+        }
+        .sidebar-count { font-size: 0.72rem; color: var(--text-3); }
+
+        .sidebar-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .sidebar-field > span { font-size: 0.85rem; color: var(--text-2); }
+        .sidebar-field-row { flex-direction: row; align-items: center; justify-content: space-between; }
+        .sidebar-goal {
+            display: flex; align-items: center; gap: 4px;
+            border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px;
+            background: var(--bg);
+        }
+        .sidebar-goal-cur { color: var(--text-3); }
+        .sidebar-goal input {
+            border: none; background: none; outline: none;
+            font-family: 'Newsreader', serif; font-size: 1.1rem; color: var(--text);
+            width: 100%;
+        }
+        /* Little toggle switch */
+        .sidebar-switch {
+            width: 42px; height: 24px; border-radius: 999px;
+            border: none; background: var(--border); cursor: pointer;
+            position: relative; transition: background 0.2s ease; padding: 0;
+        }
+        .sidebar-switch span {
+            position: absolute; top: 3px; left: 3px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+        }
+        .sidebar-switch.on { background: var(--primary); }
+        .sidebar-switch.on span { transform: translateX(18px); }
+
+        /* Upload + report list */
+        .report-upload {
+            display: flex; align-items: center; gap: 9px;
+            padding: 12px 14px;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            color: var(--text-2);
+            font-size: 0.85rem; font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+        }
+        .report-upload:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
+        .report-upload i { font-size: 0.8rem; }
+        .report-upload-msg { font-size: 0.78rem; margin: 8px 2px 0; min-height: 1em; }
+        .report-upload-msg.ok { color: var(--pos); }
+        .report-upload-msg.error { color: var(--neg); }
+        .report-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .report-loading, .report-empty { color: var(--text-3); font-size: 0.82rem; padding: 8px 2px; }
+        .report-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border); border-radius: 10px;
+            background: var(--surface);
+        }
+        .report-item-main { flex: 1; min-width: 0; }
+        .report-period { font-size: 0.86rem; font-weight: 600; color: var(--text); }
+        .report-meta {
+            font-size: 0.74rem; color: var(--text-3); margin-top: 2px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .report-del {
+            flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-3);
+            cursor: pointer; font-size: 0.78rem;
+            transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+        }
+        .report-del:hover { background: var(--neg-bg); color: var(--neg); border-color: var(--neg-border); }
+
         /* ── Main Layout ────────────────────────────── */
         .dashboard-container {
             max-width: 1440px;

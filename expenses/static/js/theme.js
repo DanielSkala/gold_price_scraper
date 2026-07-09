@@ -43,6 +43,8 @@ export function toggleTheme() {
     try { localStorage.setItem('theme', next); } catch (e) {}
     applyIcon(next);
     rerenderCharts();
+    // Let other UI (e.g. the sidebar switch) sync without a hard import dependency.
+    document.dispatchEvent(new CustomEvent('themechange', { detail: next }));
 }
 
 // Sync the toggle icon with whatever the pre-paint head script already applied.

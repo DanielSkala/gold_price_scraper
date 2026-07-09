@@ -17,6 +17,7 @@ import { initOverrideDelegation } from './overrides.js';
 import { openNewCategoryDialog } from './categories.js';
 import { setDailyMode } from './charts_monthly.js';
 import { toggleTheme, initTheme } from './theme.js';
+import { toggleSidebar, initSidebar } from './sidebar.js';
 
 // Side-effect modules: register their DOM listeners / startup behaviour.
 import './loading.js';
@@ -31,6 +32,8 @@ initTheme();
 positionViewSlider();
 window.addEventListener('load', positionViewSlider);
 window.addEventListener('resize', positionViewSlider);
+// Sidebar (data & settings drawer).
+initSidebar();
 
 window.App = {
     switchView, handleMonthChange, stepMonth,
@@ -42,7 +45,7 @@ window.App = {
     showCategoryDetails, showDayDetails, toggleTxSelection,
     handleSort, loadMoreTransactions, toggleChart,
     setDailyMode, toggleGoalEdit,
-    toggleTheme,
+    toggleTheme, toggleSidebar,
     // No tx to move when opened from the breakdown; just refresh so the new category shows.
     openNewCategoryDialog: () => openNewCategoryDialog(() => {}),
 };

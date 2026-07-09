@@ -9,6 +9,7 @@ from services import (
     overrides_service,
     photos_lib,
     recommendations_service,
+    reports_service,
     settings_service,
 )
 from services.expenses_service import (
@@ -165,6 +166,33 @@ def categories():
 def _valid_categories():
     """Built-in categories plus any user-added custom ones."""
     return set(CATEGORY_ORDER) | {c['name'] for c in overrides_service.get_custom_categories()}
+
+
+@bp.route('/api/reports', methods=['GET'])
+def reports():
+    """List expense-report files with derived period/totals (dates read from the
+    transactions inside each file, since filenames don't encode them)."""
+    return jsonify(reports_service.list_reports())
+
+
+@bp.route('/api/reports', methods=['POST'])
+def upload_report():
+    """Upload a new CSV expense report. Validates it parses before keeping it."""
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'no file provided'}), 400
+    ok, result = reports_service.save_report(f)
+    if not ok:
+        return jsonify({'error': result}), 400
+    return jsonify({'ok': True, 'report': result})
+
+
+@bp.route('/api/reports/<path:filename>', methods=['DELETE'])
+def delete_report(filename):
+    ok, result = reports_service.delete_report(filename)
+    if not ok:
+        return jsonify({'error': result}), 404
+    return jsonify({'ok': True, 'deleted': result})
 
 
 @bp.route('/api/settings')
