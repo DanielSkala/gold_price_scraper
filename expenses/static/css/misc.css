@@ -1,0 +1,202 @@
+        /* ── Plotly hover polish ────────────────────── */
+        /* Rounded corners + soft drop shadow on the dark hover card. */
+        .hoverlayer .hovertext > rect {
+            rx: 8px; ry: 8px;
+            filter: drop-shadow(0 4px 12px rgba(28,25,23,0.28));
+        }
+        g.hoverlayer text { font-family: 'Outfit', sans-serif !important; }
+
+        /* ── Editable budget goal ───────────────────── */
+        #monthlyChart { position: relative; }
+        #monthlyChart.goal-editing { cursor: ns-resize; }
+        .goal-edit-btn.active {
+            background: var(--pos) !important;
+            color: #fff !important;
+            border-color: var(--pos) !important;
+        }
+        /* Light-touch overlay: transparent capture surface (no dimming). It blocks
+           Plotly's own drag/hover but keeps the chart fully visible while editing. */
+        .goal-edit-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            cursor: ns-resize;
+            border-radius: var(--radius);
+        }
+        /* A small floating hint at the top so it's obvious what to do. */
+        .goal-hint {
+            position: absolute;
+            top: 12px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--text);
+            color: #fff;
+            font-size: 0.76rem;
+            font-weight: 500;
+            padding: 6px 13px;
+            border-radius: 999px;
+            white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(28,25,23,0.22);
+            pointer-events: none;
+            display: flex; align-items: center; gap: 7px;
+            animation: goal-hint-in 0.3s ease both;
+        }
+        .goal-hint i { font-size: 0.72rem; opacity: 0.85; }
+        @keyframes goal-hint-in {
+            from { opacity: 0; transform: translate(-50%, -6px); }
+            to   { opacity: 1; transform: translate(-50%, 0); }
+        }
+        /* Clean solid goal rule spanning the plot; centered grab pill. */
+        .goal-drag-line {
+            position: absolute;
+            left: 0; right: 0;
+            height: 0;
+            border-top: 2px solid var(--pos);
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        /* The pill IS the handle + live value readout. */
+        .goal-drag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--pos);
+            color: #fff;
+            font-size: 0.86rem;
+            font-weight: 600;
+            font-family: 'Newsreader', serif;
+            padding: 5px 14px;
+            border-radius: 999px;
+            white-space: nowrap;
+            box-shadow: 0 3px 10px rgba(21,128,61,0.35);
+            pointer-events: auto;
+            cursor: grab;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .goal-drag-pill:hover { transform: scale(1.05); }
+        #monthlyChart.goal-editing:active .goal-drag-pill,
+        .goal-drag-pill:active { cursor: grabbing; transform: scale(1.02); }
+        .goal-drag-pill i { font-size: 0.78rem; opacity: 0.8; }
+        .goal-pill-unit { font-size: 0.72rem; opacity: 0.75; font-family: 'Outfit', sans-serif; }
+
+        /* ── Toast notification ─────────────────────── */
+        .app-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            transform: translate(-50%, 20px);
+            background: var(--text);
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            box-shadow: 0 10px 30px rgba(28,25,23,0.28);
+            z-index: 4000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+            max-width: 90vw;
+        }
+        .app-toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        .app-toast i { color: #6ee7a8; }
+        .app-toast b { font-weight: 600; text-transform: capitalize; }
+
+        /* ── Loading ────────────────────────────────── */
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-3);
+        }
+
+        .loading i {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            animation: spin 1s linear infinite;
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pulse-on-click { animation: none; }
+
+        /* ── Responsive ─────────────────────────────── */
+        @media (max-width: 1200px) {
+            .overview-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .topbar { padding: 0 16px; flex-wrap: wrap; height: auto; gap: 8px; padding: 12px 16px; }
+            .topbar-nav { flex-wrap: wrap; }
+            .dashboard-container { padding: 20px 16px; }
+            .monthly-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .search-box { width: 100%; }
+            .side-panel { width: 100vw; right: -100vw; }
+            #monthSelector { min-width: 140px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Gold ───────────────────────────────────── */
+        /* Gold hero: warm tint + gold left accent to distinguish it from the month hero. */
+        .gold-hero {
+            background: linear-gradient(120deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02));
+            border: 1px solid rgba(212,175,55,0.28);
+            border-left: 4px solid var(--gold);
+            border-radius: var(--radius);
+            padding: 22px 26px;
+        }
+        .gold-hero .month-hero-eyebrow { color: var(--gold-deep); }
+        .gold-hero-sub {
+            font-size: 0.95rem;
+            margin-top: 6px;
+        }
+
+        .gold-holding {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 4px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.85rem;
+            align-items: center;
+        }
+
+        .gold-holding:hover { background: var(--bg); }
+
+        .gold-holding-header {
+            font-weight: 600;
+            color: var(--text-3);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .gold-holding-header:hover { background: transparent; }
+
+        .gold-total {
+            border-top: 2px solid var(--border);
+            font-weight: 600;
+            background: var(--bg);
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+
+        /* ── Scrollbar ──────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }

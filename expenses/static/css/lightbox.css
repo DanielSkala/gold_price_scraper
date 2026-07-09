@@ -1,0 +1,57 @@
+        /* ── Photo Lightbox ──────────────────────────── */
+        .photo-lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 40px;
+        }
+        .photo-lightbox.open { display: flex; }
+        .photo-lightbox-inner {
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+        .photo-lightbox-inner img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .photo-lightbox-bar {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            color: white;
+            font-size: 0.88rem;
+        }
+        .photo-lightbox-bar a {
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.15);
+            transition: background 0.15s ease;
+        }
+        .photo-lightbox-bar a:hover { background: rgba(255,255,255,0.25); }
+        .photo-lightbox-bar button {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .photo-lightbox-bar button:hover { background: rgba(255,255,255,0.25); }
+

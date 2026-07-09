@@ -1,0 +1,311 @@
+        /* ── Photo Strip ─────────────────────────────── */
+        #panelPhotoStrip {
+            padding: 12px 24px 4px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--surface);
+        }
+        .photo-strip-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-3);
+            margin-bottom: 8px;
+        }
+        .photo-strip-label i { margin-right: 4px; }
+        .photo-strip {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+        }
+        .photo-strip::-webkit-scrollbar { height: 6px; }
+        .photo-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .photo-tile {
+            flex: 0 0 auto;
+            width: 88px;
+            height: 88px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            background: var(--bg);
+            transition: transform 0.12s ease;
+        }
+        .photo-tile:hover { transform: scale(1.03); }
+        .photo-tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .photo-tile-meta {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            padding: 3px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
+            color: white;
+            font-size: 0.7rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        /* Expanded gallery: wrap into a grid instead of a single horizontal row */
+        .photo-strip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+            gap: 6px;
+            overflow: visible;
+            max-height: 44vh;
+            overflow-y: auto;
+        }
+        .photo-strip-grid .photo-tile {
+            width: 100%;
+            height: 76px;
+        }
+        .photo-strip-loading, .photo-strip-empty {
+            font-size: 0.78rem;
+            color: var(--text-3);
+            padding: 8px 0 12px;
+            text-align: left;
+        }
+        .photo-strip-empty i { margin-right: 4px; }
+        .photo-show-all {
+            margin-top: 8px;
+            width: 100%;
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--surface);
+            color: var(--text-2);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .photo-show-all:hover { background: var(--bg); color: var(--text); border-color: var(--text-3); }
+        .photo-show-all i { margin-right: 5px; }
+
+        /* ── Location Chips ─────────────────────────── */
+        .location-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .location-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--primary-bg), var(--primary-tint));
+            color: var(--primary-hover);
+            font-size: 0.78rem;
+            font-weight: 500;
+            border: 1px solid var(--primary-border);
+        }
+        .location-chip .chip-count {
+            background: rgba(37, 99, 235, 0.15);
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .location-chip i { font-size: 0.72rem; opacity: 0.7; }
+
+        /* ── Top-5 spend-day photos (hung under their bars) ── */
+        /* The five biggest-spend days of the month. Each card is absolutely
+           positioned so its circle sits directly under the matching bar (JS reads
+           the Plotly x-axis pixel to align). No scrolling, no per-day clutter. */
+        .daily-photo-row {
+            position: relative;
+            width: 100%;
+            margin-top: 2px;
+        }
+        .daily-photo {
+            position: absolute;
+            top: 0;
+            width: 56px;   /* JS overrides this to exactly one chart column */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            transition: transform 0.14s ease;
+        }
+        .daily-photo:hover { transform: translateY(-3px); }
+        .daily-photo:hover .daily-photo-img {
+            box-shadow: 0 6px 16px rgba(28,25,23,0.28);
+            border-color: var(--primary);
+        }
+        /* Circle fills the column width (minus a hair of breathing room), so a card is
+           exactly as wide as one bar and centers under it. Capped so wide months
+           (few columns) don't produce oversized circles. */
+        .daily-photo-img {
+            width: calc(100% - 4px);
+            max-width: 52px;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2.5px solid var(--surface);
+            box-shadow: 0 2px 8px rgba(28,25,23,0.20);
+            transition: box-shadow 0.14s ease, border-color 0.14s ease;
+        }
+        .daily-photo-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .daily-photo-amt {
+            font-family: 'Newsreader', serif;
+            font-size: 0.85rem; font-weight: 600; color: var(--text);
+        }
+
+        /* (Overview spend-day floating bubbles were replaced by the photo-mosaic +
+           liquid-glass header — see .overview-mosaic-header in components.css.) */
+
+        /* ── Photo Timeline (Apple-style bubbles) ────── */
+        .photo-timeline {
+            position: relative;
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            padding: 20px 4px 16px;
+            scrollbar-width: thin;
+            scroll-behavior: smooth;
+        }
+        .photo-timeline::-webkit-scrollbar { height: 8px; }
+        .photo-timeline::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .photo-timeline::-webkit-scrollbar-track { background: transparent; }
+
+        .tl-day {
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 8px;
+            min-width: 108px;
+        }
+
+        /* Bubble cluster — a dominant hero photo with smaller satellites */
+        .tl-cluster {
+            position: relative;
+            width: 138px;
+            height: 138px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Outer bubble: continuous gentle float (transform reserved for the drift keyframes) */
+        .tl-bubble {
+            position: absolute;
+            animation: tl-float var(--dur, 13s) ease-in-out infinite;
+            animation-delay: var(--delay, 0s);
+            will-change: transform;
+        }
+        /* Inner FX layer: hover-scale + cursor parallax (transform combined via CSS vars). */
+        .tl-bubble-fx {
+            position: relative;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--bg);
+            transform: translate(var(--px, 0px), var(--py, 0px)) scale(var(--s, 1));
+            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+            /* Soft contact shadow so the bubble floats — no glass styling here. */
+            box-shadow: 0 10px 24px rgba(28, 25, 23, 0.26), 0 3px 8px rgba(28, 25, 23, 0.16);
+        }
+        .tl-bubble-fx .glass-base {
+            position: absolute;
+            inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+            z-index: 1;
+        }
+        .tl-bubble-fx:hover {
+            --s: 1.14;
+            box-shadow: 0 16px 32px rgba(28, 25, 23, 0.3), 0 4px 10px rgba(28, 25, 23, 0.18);
+        }
+        .tl-bubble.is-hero { z-index: 6; }
+        .tl-bubble:hover { z-index: 20 !important; }
+
+        @keyframes tl-float {
+            0%   { transform: translate(0px, 0px); }
+            50%  { transform: translate(var(--fx, 0px), var(--fy, -2px)); }
+            100% { transform: translate(0px, 0px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .tl-bubble { animation: none; }
+        }
+
+        /* +N overlay badge when a day has more photos than shown */
+        .tl-more {
+            position: absolute;
+            bottom: -2px; right: -2px;
+            min-width: 22px; height: 22px;
+            padding: 0 5px;
+            border-radius: 11px;
+            background: rgba(28, 25, 23, 0.82);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.35);
+            z-index: 15;
+        }
+
+        /* The node dot on the spine */
+        .tl-node-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            margin: 6px 0 8px;
+        }
+        .tl-day.is-today .tl-node-dot { background: var(--primary); box-shadow: 0 0 0 4px rgba(37,99,235,0.18); }
+
+        .tl-day-label {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text);
+            font-family: 'Newsreader', serif;
+        }
+        .tl-day-dow {
+            font-size: 0.64rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-3);
+            margin-bottom: 1px;
+        }
+        .tl-day-spend {
+            font-size: 0.72rem;
+            font-weight: 600;
+            font-family: 'Newsreader', serif;
+            color: var(--text-2);
+            margin-top: 2px;
+        }
+        .tl-day-loc {
+            font-size: 0.68rem;
+            color: var(--text-2);
+            max-width: 110px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+        .tl-day-loc i { font-size: 0.6rem; opacity: 0.6; margin-right: 2px; }
+
+        .photo-timeline .tl-loading, .photo-timeline .tl-empty {
+            width: 100%;
+            padding: 40px 0;
+            text-align: center;
+            color: var(--text-3);
+            font-size: 0.9rem;
+        }
+

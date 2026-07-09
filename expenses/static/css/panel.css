@@ -1,0 +1,331 @@
+        /* ── Side Panel ─────────────────────────────── */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -420px;
+            width: 420px;
+            height: 100vh;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            box-shadow: -8px 0 24px rgba(28,25,23,0.08);
+            transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .side-panel.open { right: 0; }
+
+        .side-panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 1;
+        }
+
+        .side-panel-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .side-panel-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-3);
+            margin-top: 2px;
+        }
+
+        .close-panel {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-2);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 0.85rem;
+        }
+
+        .close-panel:hover { background: var(--bg); color: var(--text); }
+
+        .side-panel-content { padding: 20px 24px; }
+
+        /* Back-to-category link at the top of a drilled-in day view. */
+        .panel-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--primary);
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: gap 0.15s ease, color 0.15s ease;
+        }
+        .panel-back:hover { gap: 9px; color: var(--primary-hover); }
+        .panel-back i { font-size: 0.7rem; }
+
+        .panel-section-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-3);
+            margin: 4px 0 12px;
+        }
+        .panel-section-label:not(:first-of-type) {
+            margin-top: 20px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-light);
+        }
+        .panel-empty-note {
+            font-size: 0.82rem;
+            color: var(--text-3);
+            padding: 4px 0 8px;
+        }
+
+        .category-summary {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light);
+        }
+
+        /* ── Subtle insight chips (biggest / average / repeat / weekends) ── */
+        .panel-insights {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .panel-insight {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 11px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            background: var(--surface);
+        }
+        .panel-insight > i {
+            flex: 0 0 auto;
+            width: 26px; height: 26px;
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--primary-bg);
+            color: var(--primary);
+            font-size: 0.72rem;
+        }
+        .panel-insight .pi-body { display: flex; flex-direction: column; min-width: 0; }
+        .pi-value {
+            font-family: 'Newsreader', serif;
+            font-size: 0.95rem; font-weight: 500; color: var(--text); line-height: 1.1;
+        }
+        .pi-label {
+            font-size: 0.68rem; color: var(--text-3);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            text-transform: capitalize;
+        }
+
+        /* ── Category calendar heatmap ──────────────── */
+        /* Lives in its own fixed container at the top of the panel so it stays put
+           while the photo strip / transaction list below it change height. */
+        #panelCalendar {
+            padding: 16px 24px 4px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .cat-calendar {
+            margin-bottom: 8px;
+        }
+        .cat-calendar .cal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+        }
+        .cat-calendar .cal-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-2);
+        }
+        .cat-calendar .cal-legend {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.7rem;
+            color: var(--text-3);
+        }
+        .cat-calendar .cal-swatch {
+            width: 9px; height: 9px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .cat-calendar .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .cat-calendar .cal-dow {
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-3);
+            text-align: center;
+            padding-bottom: 2px;
+        }
+        .cat-calendar .cal-cell {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            font-weight: 500;
+            color: var(--text-3);
+            background: var(--bg);
+            border: 1px solid var(--border-light);
+            border-radius: 5px;
+        }
+        .cat-calendar .cal-cell.cal-empty {
+            background: transparent;
+            border: none;
+        }
+        /* Weekends: distinctly darker/greyer so Sat/Sun stand out from weekdays. */
+        .cat-calendar .cal-dow.cal-weekend { color: var(--text-2); }
+        .cat-calendar .cal-cell.cal-weekend {
+            background: #ddd8d0;
+            border-color: #cfc9bf;
+            color: var(--text-2);
+        }
+        /* A day with spend in this category: filled with the category color, clickable. */
+        .cat-calendar .cal-cell.cal-on {
+            background: var(--cal-color);
+            border-color: var(--cal-color);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .cat-calendar .cal-cell.cal-on:hover {
+            transform: scale(1.12);
+            box-shadow: 0 2px 6px rgba(28,25,23,0.25);
+            z-index: 1;
+        }
+        /* The day currently open in the panel gets a ring. */
+        .cat-calendar .cal-cell.cal-selected {
+            outline: 2px solid var(--text);
+            outline-offset: 1px;
+        }
+
+        .transaction-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            transition: background 0.1s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .transaction-item:last-child { border-bottom: none; }
+        .transaction-item:hover { background: var(--bg); }
+        .transaction-item.selected {
+            background: var(--primary-bg);
+            border-left: 3px solid var(--primary);
+            padding-left: 11px;
+        }
+        .transaction-item.selected:hover { background: var(--primary-tint); }
+
+        .panel-filters {
+            padding: 14px 24px 12px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--surface);
+            position: sticky;
+            top: 65px;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .panel-filters input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: 'Outfit', sans-serif;
+            background: var(--surface);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+        .panel-filters input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .panel-filters .sort-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .panel-filters .sort-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-3);
+            margin-right: 4px;
+        }
+        .panel-filters .sort-btn {
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-2);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .panel-filters .sort-btn:hover { background: var(--bg); color: var(--text); }
+        .panel-filters .sort-btn.active {
+            background: var(--text);
+            color: white;
+            border-color: var(--text);
+        }
+
+        .selection-bar {
+            position: sticky;
+            bottom: 0;
+            background: var(--text);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            transform: translateY(100%);
+            transition: transform 0.2s ease;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.12);
+        }
+        .selection-bar.visible { transform: translateY(0); }
+        .selection-bar .sel-count { opacity: 0.8; font-size: 0.78rem; }
+        .selection-bar .sel-total { font-family: 'Newsreader', serif; font-size: 1.1rem; font-weight: 500; }
+        .selection-bar .clear-sel {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+        }
+        .selection-bar .clear-sel:hover { background: rgba(255,255,255,0.25); }
+

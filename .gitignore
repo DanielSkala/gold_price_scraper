@@ -74,6 +74,8 @@ openinsider/.claude/
 
 # Personal financial data (sensitive)
 expenses/expense_reports/*.csv
+expenses/data/category_overrides.json
+expenses/data/settings.json
 
 # Flask stuff:
 instance/
