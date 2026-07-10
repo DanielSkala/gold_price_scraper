@@ -164,3 +164,50 @@ SWAP_RULES = [
         "assumption": "Taxi rides average several € vs €{ticket:.0f} a transit ticket.",
     },
 ]
+
+# ── Actionable lifestyle tips per category ──────────────────────────────────
+# When the engine flags a category (over benchmark, trending up, or budget-heavy),
+# it pairs the observation with ONE concrete thing the user can DO. Each tip has an
+# estimated `save_frac` (fraction of that category's spend it realistically trims)
+# and a `source` for the claim. `titles` are short, catchy hooks. Keyed by the
+# app's category names; `_default` covers custom/unknown categories generically.
+CATEGORY_TIPS = {
+    "gas stations": [
+        {"title": "Fill up at cheaper stations", "action": "Fuel at supermarket/discount stations (e.g. by price apps) instead of motorway pumps — often 8–12c/L cheaper.", "save_frac": 0.08, "source": "SK fuel price spread, Numbeo"},
+        {"title": "Drive in eco mode", "action": "Smoother acceleration + eco mode cuts fuel use roughly 10–15%.", "save_frac": 0.12, "source": "US DOE fueleconomy.gov driving-behaviour study"},
+        {"title": "Keep tyres inflated", "action": "Correct tyre pressure improves mileage ~3% — check monthly.", "save_frac": 0.03, "source": "US DOE fueleconomy.gov"},
+    ],
+    "eating out": [
+        {"title": "Cook a few dinners in", "action": "Swapping 2–3 restaurant meals a week for home cooking is the biggest lever here.", "save_frac": 0.30, "source": "meal-cost delta, Numbeo SK"},
+        {"title": "Set a weekly dining budget", "action": "Cap eating-out to a set number of meals per week and track against it.", "save_frac": 0.15, "source": "common budgeting practice"},
+    ],
+    "groceries": [
+        {"title": "Shop at discount grocers", "action": "Move ~30% of your basket to Lidl/Kaufland — discount baskets run 15–25% cheaper.", "save_frac": 0.08, "source": "SK basket price gap"},
+        {"title": "Plan meals, cut waste", "action": "A weekly meal plan + list avoids impulse buys and the ~20% of food households throw away.", "save_frac": 0.10, "source": "FAO/EU food-waste estimates"},
+    ],
+    "bolt": [
+        {"title": "Take transit off-peak", "action": "Use a monthly pass for routine trips and save taxis for when you truly need them.", "save_frac": 0.4, "source": "transit vs taxi fare, Numbeo SK"},
+        {"title": "Walk or bike short hops", "action": "Rides under ~2 km are often faster on foot/bike and free.", "save_frac": 0.15, "source": "urban trip-distance data"},
+    ],
+    "parking": [
+        {"title": "Use a monthly parking plan", "action": "If you park in the same zone daily, a monthly/resident permit beats per-hour rates.", "save_frac": 0.3, "source": "SK parking tariff structure"},
+        {"title": "Park a little further out", "action": "Zones one ring out are often far cheaper for a short walk.", "save_frac": 0.2, "source": "city zonal pricing"},
+    ],
+    "car wash": [
+        {"title": "Wash less often / DIY", "action": "Stretch to every 2–3 weeks or use a self-service bay instead of a full valet.", "save_frac": 0.4, "source": "self-serve vs full-wash pricing"},
+    ],
+    "travel": [
+        {"title": "Book earlier, travel light", "action": "Booking flights/stays 4–6 weeks ahead and skipping checked bags trims a big chunk.", "save_frac": 0.2, "source": "airline fare-timing studies"},
+        {"title": "Travel in shoulder season", "action": "Shifting trips off peak dates cuts flight + accommodation cost materially.", "save_frac": 0.2, "source": "seasonal pricing data"},
+    ],
+    "_default": [
+        {"title": "Set a monthly cap", "action": "Give this category a target and check in on it each month — awareness alone curbs overspend.", "save_frac": 0.12, "source": "budgeting research (mental accounting)"},
+        {"title": "Review recent purchases", "action": "Open this category and cancel or return anything you didn't really need.", "save_frac": 0.1, "source": "general spending review"},
+    ],
+}
+
+
+def tips_for_category(cat):
+    """Return the list of actionable tips for a category (falls back to generic)."""
+    key = str(cat).strip().lower()
+    return CATEGORY_TIPS.get(key) or CATEGORY_TIPS["_default"]

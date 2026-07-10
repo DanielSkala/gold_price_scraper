@@ -98,7 +98,7 @@ export function isDark() {
 
 // Theme-aware Plotly tokens. These are GETTERS (functions) so each chart render
 // picks up the current theme's colors. Call them at render time.
-export function plotlyFont() { return { family: 'Outfit, sans-serif', color: cssVar('--chart-ink', '#57534e') }; }
+export function plotlyFont() { return { family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif', color: cssVar('--chart-ink', '#57534e') }; }
 export function plotlyGrid() { return cssVar('--chart-grid', '#f0eeea'); }
 export function chartBg() { return cssVar('--chart-bg', '#ffffff'); }
 
@@ -108,16 +108,16 @@ export function hoverLabel() {
     const dark = isDark();
     const bg = dark ? '#f5f1ea' : '#1c1917';
     const fg = dark ? '#17150f' : '#ffffff';
-    return { bgcolor: bg, bordercolor: bg, font: { family: 'Outfit, sans-serif', size: 12.5, color: fg }, align: 'left' };
+    return { bgcolor: bg, bordercolor: bg, font: { family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif', size: 12.5, color: fg }, align: 'left' };
 }
 
 // Back-compat exports (light-mode values). Prefer the getters above in new code.
-export const PLOTLY_FONT = { family: 'Outfit, sans-serif', color: '#57534e' };
+export const PLOTLY_FONT = { family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif', color: '#57534e' };
 export const PLOTLY_GRID = '#f0eeea';
 export const HOVER_LABEL = {
     bgcolor: '#1c1917',
     bordercolor: '#1c1917',
-    font: { family: 'Outfit, sans-serif', size: 12.5, color: '#ffffff' },
+    font: { family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif', size: 12.5, color: '#ffffff' },
     align: 'left',
 };
 

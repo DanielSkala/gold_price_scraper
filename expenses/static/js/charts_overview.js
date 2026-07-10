@@ -145,7 +145,7 @@ export function renderMonthlyChart() {
             xanchor: 'right', yanchor: 'bottom',
             text: `Monthly goal · €${goal.toLocaleString()}`,
             showarrow: false,
-            font: { size: 10, color: GOAL_COLOR, family: 'Outfit, sans-serif' },
+            font: { size: 10, color: GOAL_COLOR, family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' },
             bgcolor: 'rgba(240,253,244,0.92)',
             bordercolor: 'rgba(22,163,74,0.25)',
             borderwidth: 1,
@@ -357,7 +357,7 @@ export function renderCategoryChart() {
         plot_bgcolor: chartBg(),
         paper_bgcolor: chartBg(),
         hoverlabel: hoverLabel(),
-        annotations: [{ text: centerText, x: 0.5, y: 0.5, font: { size: 18, family: 'Newsreader, serif', color: inkColor }, showarrow: false }]
+        annotations: [{ text: centerText, x: 0.5, y: 0.5, font: { size: 18, family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif', color: inkColor }, showarrow: false }]
     }, PLOTLY_CONFIG);
 
     document.getElementById('categoryChart').on('plotly_click', function(data) {

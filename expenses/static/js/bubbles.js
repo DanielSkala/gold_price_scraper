@@ -7,48 +7,53 @@ import { showDayDetails } from './panel.js';
 // panels holding the title, key stats, and the ranked biggest-spend days. Each
 // mosaic tile and each day row opens that day's side panel.
 
-let _spendDaysCache = null;   // cached across re-renders (survives outlier toggle via key)
-let _spendDaysKey = null;
+let _rankedDaysCache = null;   // ranked biggest-spend days for the glass list (cached by outlier key)
+let _rankedKey = null;
 
 export function renderSpendBubbles() {
     const host = document.getElementById('spendBubbles');
     const grid = document.getElementById('mosaicGrid');
     if (!host || !grid) return;
 
-    const key = state.excludeOutliers ? 'excl' : 'incl';
-    if (_spendDaysCache && _spendDaysKey === key) {
-        paint(host, grid, _spendDaysCache);
-        return;
-    }
+    const exq = state.excludeOutliers ? 'exclude_outliers=1&' : '';
 
+    // MOSAIC: random days each load, so the collage is never the same twice.
+    // A fresh seed per render guarantees variety even on repeat visits.
     grid.innerHTML = `<div class="mosaic-loading"><i class="fas fa-spinner fa-spin"></i></div>`;
-    // Ask for several photos per day so the mosaic has enough tiles to fill.
-    const base = 'limit=10&photos_per_day=4';
-    const qs = state.excludeOutliers ? `?exclude_outliers=1&${base}` : `?${base}`;
-    fetch('/api/top-spend-days' + qs)
+    const seed = Math.floor(Math.random() * 1e9);
+    fetch(`/api/mosaic-photos?${exq}days=12&photos_per_day=4&seed=${seed}`)
         .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
         .then(data => {
-            _spendDaysCache = (data.days || []).filter(d => (d.photos && d.photos.length) || (d.photo && d.photo.uuid));
-            _spendDaysKey = key;
-            paint(host, grid, _spendDaysCache);
+            const mosaicDays = (data.days || []).filter(d => d.photos && d.photos.length);
+            _painted = { grid, days: mosaicDays };
+            paintMosaic(grid, mosaicDays);
+            attachMosaicResize();
         })
         .catch(() => { grid.innerHTML = ''; });
+
+    // GLASS LIST: the actual ranked biggest-spend days (stable, meaningful).
+    const key = state.excludeOutliers ? 'excl' : 'incl';
+    if (_rankedDaysCache && _rankedKey === key) {
+        paintDaysList(host, _rankedDaysCache);
+        return;
+    }
+    fetch(`/api/top-spend-days?${exq}limit=7&photos_per_day=1`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+        .then(data => {
+            _rankedDaysCache = (data.days || []);
+            _rankedKey = key;
+            paintDaysList(host, _rankedDaysCache);
+        })
+        .catch(() => { host.innerHTML = ''; });
 }
 
 // Invalidate the cache (e.g. when the outlier filter flips).
 export function resetSpendBubbles() {
-    _spendDaysCache = null;
-    _spendDaysKey = null;
+    _rankedDaysCache = null;
+    _rankedKey = null;
 }
 
-let _painted = null;   // {host, grid, days} for responsive re-tiling
-function paint(host, grid, days) {
-    if (!days || !days.length) { grid.innerHTML = ''; host.innerHTML = ''; return; }
-    _painted = { host, grid, days };
-    paintMosaic(grid, days);
-    paintDaysList(host, days);
-    attachMosaicResize();
-}
+let _painted = null;   // {grid, days} for responsive re-tiling of the mosaic
 
 let _resizeBound = false;
 function attachMosaicResize() {

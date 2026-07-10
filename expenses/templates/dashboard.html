@@ -93,6 +93,39 @@
         </div>
     </aside>
 
+    <!-- Onboarding / empty state: shown when there are no expense reports yet. -->
+    <div class="onboarding" id="onboarding" style="display:none;">
+        <div class="onboarding-card">
+            <div class="onboarding-icon"><i class="fas fa-wallet"></i></div>
+            <h1 class="onboarding-title">Welcome to Expenses</h1>
+            <p class="onboarding-sub">To get started, add a card-transactions export — or explore the app with sample data first.</p>
+
+            <div class="onboarding-actions">
+                <label class="onboarding-btn onboarding-btn-primary" id="onboardUpload">
+                    <input type="file" id="onboardFile" accept=".csv" hidden>
+                    <i class="fas fa-upload"></i> Upload your CSV export
+                </label>
+                <button class="onboarding-btn onboarding-btn-ghost" id="onboardSample">
+                    <i class="fas fa-flask"></i> Explore with sample data
+                </button>
+            </div>
+            <div class="onboarding-msg" id="onboardMsg"></div>
+
+            <div class="onboarding-steps">
+                <div class="onboarding-steps-title">How to export from Tatra banka</div>
+                <ol>
+                    <li>Open the <strong>Tatra banka</strong> app</li>
+                    <li>Go to <strong>Pohyby na karte</strong> (card transactions)</li>
+                    <li>Tap the icon in the <strong>top-right</strong> corner</li>
+                    <li>Select a <strong>cycle / period</strong></li>
+                    <li>Choose <strong>Export → CSV</strong></li>
+                    <li>Find it in <strong>Messages</strong> and download the file</li>
+                    <li>Upload it here 👆</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
     <div class="dashboard-container">
         <!-- Outlier Panel -->
         <div class="outlier-panel" id="outlierPanel">
@@ -321,6 +354,7 @@
         </div>
 
         <!-- Side Panel -->
+        <div class="side-panel-scrim" id="sidePanelScrim" onclick="App.closeSidePanel()"></div>
         <div class="side-panel" id="sidePanel">
             <div class="side-panel-header">
                 <div class="side-panel-heading">

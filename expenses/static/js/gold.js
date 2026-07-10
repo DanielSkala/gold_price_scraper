@@ -252,12 +252,12 @@ export function renderGoldPortfolioTable() {
                         <div style="font-weight:500;">${item.label}</div>
                         <div style="font-size:0.78rem;color:var(--text-3);">${new Date(item.date).toLocaleDateString()} &middot; ${item.weight_g}g</div>
                     </div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;">€${item.cost.toLocaleString()}</div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;">€${item.value_now.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    <div style="text-align:right;font-family:var(--font-serif);">€${item.cost.toLocaleString()}</div>
+                    <div style="text-align:right;font-family:var(--font-serif);">€${item.value_now.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     <div style="text-align:right;font-size:0.82rem;color:var(--text-2);">${item.premium_pct !== null ? item.premium_pct + '%' : '—'}</div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;color:${glColor};font-weight:500;">
+                    <div style="text-align:right;font-family:var(--font-serif);color:${glColor};font-weight:500;">
                         ${sign}€${Math.abs(item.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:400;">${sign}${item.gain_loss_pct}%</div>
+                        <div style="font-size:0.75rem;font-family:var(--font-sans);font-weight:400;">${sign}${item.gain_loss_pct}%</div>
                     </div>
                 </div>
             `;
@@ -267,12 +267,12 @@ export function renderGoldPortfolioTable() {
                 <div style="font-weight:600;">Total</div>
                 <div style="font-size:0.78rem;color:var(--text-3);">${p.total_weight_g}g</div>
             </div>
-            <div style="text-align:right;font-family:'Newsreader',serif;">€${p.total_cost.toLocaleString()}</div>
-            <div style="text-align:right;font-family:'Newsreader',serif;">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div style="text-align:right;font-family:var(--font-serif);">€${p.total_cost.toLocaleString()}</div>
+            <div style="text-align:right;font-family:var(--font-serif);">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             <div></div>
-            <div style="text-align:right;font-family:'Newsreader',serif;color:${p.gain_loss >= 0 ? 'var(--pos)' : 'var(--neg)'};font-weight:600;">
+            <div style="text-align:right;font-family:var(--font-serif);color:${p.gain_loss >= 0 ? 'var(--pos)' : 'var(--neg)'};font-weight:600;">
                 ${p.gain_loss >= 0 ? '+' : ''}€${Math.abs(p.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:500;">${p.gain_loss >= 0 ? '+' : ''}${p.gain_loss_pct}%</div>
+                <div style="font-size:0.75rem;font-family:var(--font-sans);font-weight:500;">${p.gain_loss >= 0 ? '+' : ''}${p.gain_loss_pct}%</div>
             </div>
         </div>
     `;

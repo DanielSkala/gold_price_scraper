@@ -1,35 +1,54 @@
-        /* ── Side Panel ─────────────────────────────── */
+        /* ── Side Panel (sheet + dimming scrim) ─────── */
+        .side-panel-scrim {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.24);
+            -webkit-backdrop-filter: blur(1px);
+            backdrop-filter: blur(1px);
+            opacity: 0; pointer-events: none;
+            transition: opacity var(--dur) ease;
+            z-index: 999;
+        }
+        .side-panel-scrim.open { opacity: 1; pointer-events: auto; }
+
         .side-panel {
             position: fixed;
             top: 0;
-            right: -420px;
-            width: 420px;
+            right: 0;
+            width: 424px;
+            max-width: 92vw;
             height: 100vh;
             background: var(--surface);
-            border-left: 1px solid var(--border);
-            box-shadow: -8px 0 24px rgba(28,25,23,0.08);
-            transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 1px solid var(--hairline);
+            box-shadow: var(--shadow-pop);
+            transform: translateX(102%);
+            transition: transform var(--dur-slow) var(--ease-out);
             z-index: 1000;
             overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
-        .side-panel.open { right: 0; }
+        .side-panel.open { transform: translateX(0); }
 
+        /* Header is a translucent chrome layer; content scrolls under it. */
         .side-panel-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border);
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--hairline);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             position: sticky;
             top: 0;
-            background: var(--surface);
+            background: var(--mat-thick);
+            -webkit-backdrop-filter: saturate(180%) blur(var(--mat-blur));
+            backdrop-filter: saturate(180%) blur(var(--mat-blur));
             z-index: 1;
         }
 
         .side-panel-header h3 {
-            font-size: 0.95rem;
-            font-weight: 600;
+            font-size: 1.16rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
             text-transform: capitalize;
         }
         .side-panel-subtitle {
@@ -39,21 +58,23 @@
         }
 
         .close-panel {
-            background: none;
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            flex: 0 0 auto;
+            background: color-mix(in srgb, var(--text) 7%, transparent);
+            border: none;
+            border-radius: 50%;
             color: var(--text-2);
-            width: 32px;
-            height: 32px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.15s ease;
-            font-size: 0.85rem;
+            transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+            font-size: 0.82rem;
         }
 
-        .close-panel:hover { background: var(--bg); color: var(--text); }
+        .close-panel:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+        .close-panel:active { transform: scale(0.9); }
 
         .side-panel-content { padding: 20px 24px; }
 
@@ -126,7 +147,7 @@
         }
         .panel-insight .pi-body { display: flex; flex-direction: column; min-width: 0; }
         .pi-value {
-            font-family: 'Newsreader', serif;
+            font-family: var(--font-serif);
             font-size: 0.95rem; font-weight: 500; color: var(--text); line-height: 1.1;
         }
         .pi-label {
@@ -200,8 +221,8 @@
         /* Weekends: distinctly darker/greyer so Sat/Sun stand out from weekdays. */
         .cat-calendar .cal-dow.cal-weekend { color: var(--text-2); }
         .cat-calendar .cal-cell.cal-weekend {
-            background: #ddd8d0;
-            border-color: #cfc9bf;
+            background: color-mix(in srgb, var(--text) 10%, transparent);
+            border-color: color-mix(in srgb, var(--text) 14%, transparent);
             color: var(--text-2);
         }
         /* A day with spend in this category: filled with the category color, clickable. */
@@ -258,7 +279,7 @@
             border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 0.85rem;
-            font-family: 'Outfit', sans-serif;
+            font-family: var(--font-sans);
             background: var(--surface);
             color: var(--text);
             box-sizing: border-box;
@@ -288,7 +309,7 @@
             color: var(--text-2);
             border-radius: 6px;
             font-size: 0.75rem;
-            font-family: 'Outfit', sans-serif;
+            font-family: var(--font-sans);
             font-weight: 500;
             cursor: pointer;
             transition: all 0.12s ease;
@@ -316,7 +337,7 @@
         }
         .selection-bar.visible { transform: translateY(0); }
         .selection-bar .sel-count { opacity: 0.8; font-size: 0.78rem; }
-        .selection-bar .sel-total { font-family: 'Newsreader', serif; font-size: 1.1rem; font-weight: 500; }
+        .selection-bar .sel-total { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 500; }
         .selection-bar .clear-sel {
             background: rgba(255,255,255,0.15);
             border: none;
@@ -324,7 +345,7 @@
             padding: 5px 12px;
             border-radius: 4px;
             cursor: pointer;
-            font-family: 'Outfit', sans-serif;
+            font-family: var(--font-sans);
             font-size: 0.75rem;
         }
         .selection-bar .clear-sel:hover { background: rgba(255,255,255,0.25); }

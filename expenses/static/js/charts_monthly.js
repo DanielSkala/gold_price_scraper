@@ -39,7 +39,7 @@ export function renderMonthlyDetailCharts() {
             hoverlabel: hoverLabel(),
             annotations: [{
                 text: `<span style="font-size:0.8rem;color:#a8a29e">Total</span><br><b>€${monthPieTotal.toLocaleString('en', { maximumFractionDigits: 0 })}</b>`,
-                showarrow: false, font: { size: 16, color: (isDark() ? '#f5f1ea' : '#1c1917'), family: 'Newsreader, serif' }, x: 0.5, y: 0.5
+                showarrow: false, font: { size: 16, color: (isDark() ? '#f5f1ea' : '#1c1917'), family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }, x: 0.5, y: 0.5
             }]
         }, PLOTLY_CONFIG);
 
@@ -375,7 +375,7 @@ export function renderCategoryBreakdown() {
                             <i class="fas ${getCategoryIcon(cat)}" style="color:${color}; font-size:0.8rem;"></i>
                             ${cat.replace('_', ' ').replace('-', ' ')}
                         </div>
-                        <div style="font-family: 'Newsreader', serif; font-size: 1.35rem; color: var(--text); margin-bottom: 4px;">
+                        <div style="font-family: var(--font-serif); font-size: 1.35rem; color: var(--text); margin-bottom: 4px;">
                             €${amount.toFixed(2)}
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-3);">
@@ -391,7 +391,7 @@ export function renderCategoryBreakdown() {
             </div>
         </div>
         <div style="text-align: center; padding: 12px; border-top: 1px solid var(--border-light); font-size: 0.85rem; color: var(--text-2);">
-            Monthly Total: <strong style="font-family: 'Newsreader', serif; font-size: 1.05rem;">€${total.toFixed(2)}</strong>
+            Monthly Total: <strong style="font-family: var(--font-serif); font-size: 1.05rem;">€${total.toFixed(2)}</strong>
         </div>
     `;
 }

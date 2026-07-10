@@ -54,6 +54,8 @@ export function openPanel({ title, subtitle = null, transactions, showDate = tru
     renderPanelBody();
     updateSelectionBar();
     document.getElementById('sidePanel').classList.add('open');
+    const scrim = document.getElementById('sidePanelScrim');
+    if (scrim) scrim.classList.add('open');
 }
 
 export function applyPanelFilters() {
@@ -175,7 +177,7 @@ export function renderPanelBody() {
         <div class="category-summary">
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                 <span style="font-size: 0.82rem; color: var(--text-2);">${isFiltered ? 'Filtered total' : 'Total'}</span>
-                <span style="font-family: 'Newsreader', serif; font-size: 1.1rem; font-weight: 500;">€${total.toFixed(2)}</span>
+                <span style="font-family: var(--font-serif); font-size: 1.1rem; font-weight: 500;">€${total.toFixed(2)}</span>
             </div>
             <div style="display: flex; justify-content: space-between;">
                 <span style="font-size: 0.82rem; color: var(--text-2);">Transactions</span>
@@ -218,7 +220,7 @@ export function renderPanelBody() {
                         ${categoryBadgeHtml(tx)}
                         ${dateStr}
                     </div>
-                    <div style="font-family: 'Newsreader', serif; font-weight: 400; color: ${amountColor(tx)}; font-size: 0.95rem; white-space: nowrap;">€${tx.amount.toFixed(2)}</div>
+                    <div style="font-family: var(--font-serif); font-weight: 400; color: ${amountColor(tx)}; font-size: 0.95rem; white-space: nowrap;">€${tx.amount.toFixed(2)}</div>
                 </div>
             </div>
         `;

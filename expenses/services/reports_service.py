@@ -8,6 +8,7 @@ works for any bank export the parser understands.
 import glob
 import os
 import re
+import shutil
 from datetime import datetime
 
 from werkzeug.utils import secure_filename
@@ -15,6 +16,7 @@ from werkzeug.utils import secure_filename
 from credit_card_expenses import parse_expenses_from_csv
 
 EXPENSE_REPORTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'expense_reports')
+SAMPLE_REPORTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'sample_reports')
 
 
 def _month_label(ym):
@@ -107,3 +109,24 @@ def delete_report(filename):
         return False, 'Report not found.'
     os.remove(path)
     return True, safe
+
+
+def has_data():
+    """True if there's at least one usable expense-report CSV."""
+    return bool(glob.glob(os.path.join(EXPENSE_REPORTS_DIR, '*.csv')))
+
+
+def load_samples():
+    """Copy the bundled synthetic sample exports into the live reports dir so a fresh
+    clone can explore the app instantly. Returns (ok, count_or_message)."""
+    samples = sorted(glob.glob(os.path.join(SAMPLE_REPORTS_DIR, '*.csv')))
+    if not samples:
+        return False, 'No sample data is bundled with this build.'
+    os.makedirs(EXPENSE_REPORTS_DIR, exist_ok=True)
+    copied = 0
+    for src in samples:
+        dest = os.path.join(EXPENSE_REPORTS_DIR, os.path.basename(src))
+        if not os.path.exists(dest):
+            shutil.copy2(src, dest)
+            copied += 1
+    return True, copied

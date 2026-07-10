@@ -1,5 +1,17 @@
-"""Gold spot price, premium and portfolio logic."""
+"""Gold spot price, premium and portfolio logic.
+
+The Gold tab is OPTIONAL and specific to the original author's setup. It relies on
+three things that a generic clone may not have, so each degrades gracefully:
+  * the sibling `../../gold/gold_premiums.csv` (only present in the full monorepo) —
+    a missing CSV just makes /api/gold/premiums return 404 (the tab shows no premiums);
+  * a network connection for live spot prices via yfinance — offline fetches return
+    None so the routes answer with a clean JSON error instead of a 500 stack trace;
+  * the author's own purchase history in GOLD_PURCHASES — override it for your own
+    holdings via a `data/gold_purchases.json` file or the GOLD_PURCHASES_JSON env var.
+None of these ever block app startup or affect the other tabs.
+"""
 import csv
+import json
 import os
 import time
 
@@ -12,10 +24,37 @@ GOLD_CSV = os.path.join(os.path.dirname(__file__), '..', '..', 'gold', 'gold_pre
 GOLD_WEIGHTS = [1, 2, 5, 10, 20, 31.1, 50, 100, 250, 500, 1000]
 GOLD_WEIGHT_LABELS = ['1g', '2g', '5g', '10g', '20g', '31.1g', '50g', '100g', '250g', '500g', '1000g']
 
-GOLD_PURCHASES = [
+# The author's own bar purchases — kept as the default so their Gold tab is unchanged.
+# Override with your own holdings via data/gold_purchases.json or $GOLD_PURCHASES_JSON
+# (a JSON list of {date, weight_g, price_eur, label} objects).
+_DEFAULT_GOLD_PURCHASES = [
     {"date": "2025-02-03", "weight_g": 20, "price_eur": 1785.00, "label": "Argor Heraeus 20g"},
     {"date": "2026-01-29", "weight_g": 20, "price_eur": 3063.00, "label": "Argor Heraeus 20g"},
 ]
+_GOLD_PURCHASES_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'gold_purchases.json')
+
+
+def _load_gold_purchases():
+    """Purchases from $GOLD_PURCHASES_JSON or data/gold_purchases.json, else the
+    author's defaults. Any parse error falls back to the defaults."""
+    raw = os.environ.get('GOLD_PURCHASES_JSON')
+    if not raw and os.path.exists(_GOLD_PURCHASES_FILE):
+        try:
+            with open(_GOLD_PURCHASES_FILE, encoding='utf-8') as f:
+                raw = f.read()
+        except OSError:
+            raw = None
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return parsed
+        except (ValueError, TypeError):
+            pass
+    return _DEFAULT_GOLD_PURCHASES
+
+
+GOLD_PURCHASES = _load_gold_purchases()
 
 # Simple in-memory cache for gold spot data (fetching is slow)
 _gold_cache = {}  # keyed by period
@@ -33,10 +72,15 @@ def fetch_gold_spot_history(period='2y'):
     if cached is not None and (now - cached["ts"]) < GOLD_CACHE_TTL:
         return cached["data"]
 
-    gold = yf.Ticker("GC=F")
-    fx = yf.Ticker("EURUSD=X")
-    gold_hist = gold.history(period=period)
-    fx_hist = fx.history(period=period)
+    try:
+        gold = yf.Ticker("GC=F")
+        fx = yf.Ticker("EURUSD=X")
+        gold_hist = gold.history(period=period)
+        fx_hist = fx.history(period=period)
+    except Exception:
+        # No network / yfinance rate-limit / API change — treat as "unavailable"
+        # so callers return a clean error rather than 500-ing on a stack trace.
+        return None
 
     if gold_hist.empty or fx_hist.empty:
         return None

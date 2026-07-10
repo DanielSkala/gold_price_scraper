@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { openNewCategoryDialog } from './categories.js';
 import { loadAllData } from './loading.js';
 import { openPanel } from './panel.js';
+import { linkifySources } from './sources.js';
 
 // ── Overview insights: savings recommendations + category discovery ─────────
 // Both are backed by deterministic, local endpoints (no LLM). This module just
@@ -33,6 +34,19 @@ function recIcon(r) {
     if (r.id && r.id.indexOf('trend_') === 0) return 'fa-arrow-up';
     if (r.id && r.id.indexOf('top_') === 0) return 'fa-chart-pie';
     return (SEV[r.severity] || SEV.tip).icon;
+}
+
+// The backend title is now always a concrete ACTION ("Fill up at cheaper stations",
+// "Cook a few dinners in", …). A few swap-rule ids get an even punchier hook; the
+// rest use the action title as-is.
+function recHeadline(r) {
+    const byId = {
+        cook_vs_eatout:   'Cook a few dinners in',
+        coffee_home:      'Make your coffee at home',
+        delivery_pickup:  'Ditch the delivery fees',
+        transit_vs_taxi:  'Take transit, skip the taxi',
+    };
+    return byId[r.id] || r.title;
 }
 
 export function renderRecommendations() {
@@ -84,7 +98,9 @@ export function renderRecommendations() {
                     e.stopPropagation();
                     const card = link.closest('.rec-card');
                     const open = card.classList.toggle('expanded');
-                    link.textContent = open ? 'Show less' : 'Learn more';
+                    link.innerHTML = open
+                        ? 'Show less<i class="fas fa-chevron-up"></i>'
+                        : 'Learn more<i class="fas fa-chevron-down"></i>';
                 });
             });
         })
@@ -97,26 +113,22 @@ function renderHeadline(h) {
     return `<p class="insight-lead">${esc(h.detail)} ${savePill}</p>`;
 }
 
-// Recommendation card: stable size. Header row (icon · title · saving), a one-line
-// summary, and a "Learn more" toggle that reveals the full detail + assumption in
-// place — no hover-resize, so it feels calm and purposeful.
+// Recommendation card: at rest, only a punchy headline + savings pill + a "Learn
+// more" nudge. The full explanation (detail + the assumption) stays hidden until
+// tapped — so the section scans instantly and invites a click.
 function renderRecCard(r, idx) {
     const sev = SEV[r.severity] || SEV.tip;
     const save = r.saving > 0 ? `<span class="rec-save">Save ${euro(r.saving)}</span>` : '';
-    // Only offer "Learn more" when there's extra context (the assumption) to reveal.
-    const expandable = r.assumption
-        ? `<div class="rec-expand"><span class="rec-assume">${esc(r.assumption)}</span></div>
-           <button class="rec-learn" type="button">Learn more</button>`
-        : '';
+    const detail = esc(r.detail) + (r.assumption ? ` <span class="rec-assume">${linkifySources(r.assumption)}</span>` : '');
     return `
         <div class="rec-card ${sev.tone}">
             <div class="rec-card-head">
                 <span class="rec-ico"><i class="fas ${recIcon(r)}"></i></span>
-                <span class="rec-title">${esc(r.title)}</span>
+                <span class="rec-title">${esc(recHeadline(r))}</span>
                 ${save}
             </div>
-            <div class="rec-detail">${esc(r.detail)}</div>
-            ${expandable}
+            <div class="rec-expand"><div class="rec-detail">${detail}</div></div>
+            <button class="rec-learn" type="button">Learn more<i class="fas fa-chevron-down"></i></button>
         </div>
     `;
 }

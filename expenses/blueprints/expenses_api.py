@@ -1,4 +1,5 @@
 """Expense analytics API routes."""
+import random
 from collections import defaultdict
 
 from flask import Blueprint, jsonify, request
@@ -172,7 +173,18 @@ def _valid_categories():
 def reports():
     """List expense-report files with derived period/totals (dates read from the
     transactions inside each file, since filenames don't encode them)."""
-    return jsonify(reports_service.list_reports())
+    data = reports_service.list_reports()
+    data['has_data'] = reports_service.has_data()
+    return jsonify(data)
+
+
+@bp.route('/api/reports/load-samples', methods=['POST'])
+def load_sample_reports():
+    """Copy the bundled synthetic sample exports into the live data dir (onboarding)."""
+    ok, result = reports_service.load_samples()
+    if not ok:
+        return jsonify({'error': result}), 400
+    return jsonify({'ok': True, 'copied': result})
 
 
 @bp.route('/api/reports', methods=['POST'])
@@ -334,6 +346,56 @@ def top_spend_days():
             "location": locations[0]["name"] if locations else (curated[0]["location"] if curated else None),
         })
 
+    return jsonify({"days": days})
+
+
+@bp.route('/api/mosaic-photos')
+def mosaic_photos():
+    """Photos for the overview mosaic backdrop — drawn from a RANDOM sample of days
+    that have spend + photos, so the collage looks different on each load instead of
+    always showing the same top-spend days. Higher-spend days are weighted a little
+    more likely, but selection is genuinely varied. Query: ?days=N, ?photos_per_day=K,
+    ?seed=S (optional, for a reproducible shuffle)."""
+    n_days = max(1, min(int(request.args.get('days', '10') or 10), 24))
+    per_day = max(1, min(int(request.args.get('photos_per_day', '4') or 4), 6))
+    seed = request.args.get('seed')
+
+    all_expenses = get_expenses(exclude_outliers=_should_exclude_outliers())
+    daily = defaultdict(float)
+    for tx in all_expenses:
+        daily[tx["date"].strftime("%Y-%m-%d")] += tx["amount"]
+    if not daily:
+        return jsonify({"days": []})
+
+    rng = random.Random(seed) if seed is not None else random.Random()
+    # Weighted-random sample without replacement: weight ∝ spend, so bigger days
+    # appear a bit more often, but any day can surface — variety every load.
+    pool = list(daily.items())
+    picked = []
+    weights = {d: max(a, 1.0) for d, a in pool}
+    candidates = pool[:]
+    while candidates and len(picked) < n_days:
+        total = sum(weights[d] for d, _ in candidates)
+        r = rng.uniform(0, total)
+        upto = 0
+        for idx, (d, a) in enumerate(candidates):
+            upto += weights[d]
+            if upto >= r:
+                picked.append((d, a))
+                candidates.pop(idx)
+                break
+
+    days = []
+    for date, amount in picked:
+        photos = photos_lib.photos_for_day(date)
+        curated = photos_lib.curate(photos, target=per_day)
+        if not curated:
+            continue
+        days.append({
+            "date": date,
+            "amount": round(amount, 2),
+            "photos": curated,
+        })
     return jsonify({"days": days})
 
 

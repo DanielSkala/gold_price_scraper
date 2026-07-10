@@ -2,6 +2,11 @@
 
 Uses SQLite in `immutable=1` mode so we can safely read while Photos.app
 is running. Assumes the default library at ~/Pictures/Photos Library.photoslibrary/.
+
+This is an OPTIONAL, macOS-only feature. On Windows/Linux (or a Mac without a
+Photos library) every query below simply returns empty — the app is fully usable
+with no photos. Pillow is likewise optional: without it, near-duplicate dedup is
+skipped but photos still load.
 """
 import os
 import sqlite3
@@ -9,7 +14,12 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    # Pillow is only used for perceptual-hash dedup. If it's missing we degrade
+    # gracefully: photos still load, we just don't de-duplicate near-identical ones.
+    Image = None
 
 PHOTOS_LIBRARY = Path(os.path.expanduser("~/Pictures/Photos Library.photoslibrary"))
 PHOTOS_DB = PHOTOS_LIBRARY / "database" / "Photos.sqlite"

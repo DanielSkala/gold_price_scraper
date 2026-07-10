@@ -6,6 +6,7 @@ import { renderStats } from './stats.js';
 import { renderTransactionsTable } from './transactions.js';
 import { loadCustomCategories } from './categories.js';
 import { renderOverviewInsights } from './insights.js';
+import { checkOnboarding } from './onboarding.js';
 
 // ── Data Loading ───────────────────────────────
 // ES modules are deferred, so DOMContentLoaded may have ALREADY fired by the time
@@ -19,14 +20,17 @@ function onReady(fn) {
 }
 
 onReady(function () {
-    // Load custom-category colors/icons + persisted settings first so they resolve
-    // on the first render.
-    Promise.all([
-        loadCustomCategories(),
-        fetch('/api/settings').then(r => r.json())
-            .then(s => { if (s && typeof s.budget_goal === 'number') state.budgetGoal = s.budget_goal; })
-            .catch(() => {}),
-    ]).then(loadAllData);
+    // First-run check: if there's no data yet, show onboarding and skip the data load
+    // (the data endpoints would be empty). Otherwise proceed with the normal startup.
+    checkOnboarding().then((hasData) => {
+        if (!hasData) return;
+        Promise.all([
+            loadCustomCategories(),
+            fetch('/api/settings').then(r => r.json())
+                .then(s => { if (s && typeof s.budget_goal === 'number') state.budgetGoal = s.budget_goal; })
+                .catch(() => {}),
+        ]).then(loadAllData);
+    });
 });
 
 export function loadAllData() {

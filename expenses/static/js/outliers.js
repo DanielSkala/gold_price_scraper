@@ -47,6 +47,8 @@ export function renderOutlierPanel() {
 
 export function closeSidePanel() {
     document.getElementById('sidePanel').classList.remove('open');
+    const scrim = document.getElementById('sidePanelScrim');
+    if (scrim) scrim.classList.remove('open');
     document.getElementById('selectionBar').classList.remove('visible');
     const pf = document.getElementById('panelFilters');
     if (pf) pf.style.display = 'none';

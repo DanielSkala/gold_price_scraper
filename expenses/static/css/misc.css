@@ -4,7 +4,7 @@
             rx: 8px; ry: 8px;
             filter: drop-shadow(0 4px 12px rgba(28,25,23,0.28));
         }
-        g.hoverlayer text { font-family: 'Outfit', sans-serif !important; }
+        g.hoverlayer text { font-family: var(--font-sans) !important; }
 
         /* ── Editable budget goal ───────────────────── */
         #monthlyChart { position: relative; }
@@ -66,7 +66,7 @@
             color: #fff;
             font-size: 0.86rem;
             font-weight: 600;
-            font-family: 'Newsreader', serif;
+            font-family: var(--font-serif);
             padding: 5px 14px;
             border-radius: 999px;
             white-space: nowrap;
@@ -79,7 +79,7 @@
         #monthlyChart.goal-editing:active .goal-drag-pill,
         .goal-drag-pill:active { cursor: grabbing; transform: scale(1.02); }
         .goal-drag-pill i { font-size: 0.78rem; opacity: 0.8; }
-        .goal-pill-unit { font-size: 0.72rem; opacity: 0.75; font-family: 'Outfit', sans-serif; }
+        .goal-pill-unit { font-size: 0.72rem; opacity: 0.75; font-family: var(--font-sans); }
 
         /* ── Toast notification ─────────────────────── */
         .app-toast {
@@ -142,7 +142,7 @@
             .monthly-grid { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .search-box { width: 100%; }
-            .side-panel { width: 100vw; right: -100vw; }
+            .side-panel { width: 100vw; }
             #monthSelector { min-width: 140px; }
         }
 
@@ -153,11 +153,12 @@
         /* ── Gold ───────────────────────────────────── */
         /* Gold hero: warm tint + gold left accent to distinguish it from the month hero. */
         .gold-hero {
-            background: linear-gradient(120deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02));
-            border: 1px solid rgba(212,175,55,0.28);
+            background: linear-gradient(120deg, rgba(212,175,55,0.12), rgba(212,175,55,0.02));
+            border: 1px solid rgba(212,175,55,0.3);
             border-left: 4px solid var(--gold);
-            border-radius: var(--radius);
-            padding: 22px 26px;
+            border-radius: var(--radius-lg);
+            padding: 24px 28px;
+            box-shadow: var(--shadow);
         }
         .gold-hero .month-hero-eyebrow { color: var(--gold-deep); }
         .gold-hero-sub {
@@ -196,7 +197,40 @@
         }
 
         /* ── Scrollbar ──────────────────────────────── */
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+        ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 20%, transparent); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text) 32%, transparent); background-clip: padding-box; }
+
+        /* ── Accessibility: honor reduced motion / transparency / contrast ──
+           Reduced motion → gentle cross-fades, no slides/springs/parallax.
+           Reduced transparency → frost the materials solid.
+           More contrast → near-solid surfaces with a defined border. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 120ms !important;
+                scroll-behavior: auto !important;
+            }
+            .sidebar, .side-panel { transition: opacity var(--dur) ease !important; transform: none !important; }
+            .tl-bubble, .spend-bubble { animation: none !important; }
+        }
+        @media (prefers-reduced-transparency: reduce) {
+            .topbar, .sidebar, .side-panel-header, .glass-panel,
+            .photo-lightbox, .newcat-overlay, .sidebar-backdrop {
+                -webkit-backdrop-filter: none !important;
+                backdrop-filter: none !important;
+            }
+            .topbar { background: var(--surface); }
+            .sidebar, .side-panel-header { background: var(--surface); }
+            .glass-panel { background: var(--surface); }
+        }
+        @media (prefers-contrast: more) {
+            :root { --hairline: rgba(0,0,0,0.35); }
+            [data-theme="dark"] { --hairline: rgba(255,255,255,0.4); }
+            .chart-container, .stat-card, .disc-card, .rec-card, .ov-tile,
+            .transactions-section, .report-item {
+                border-color: var(--text-3);
+            }
+        }

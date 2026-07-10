@@ -10,8 +10,11 @@ export function positionViewSlider() {
     const slider = document.getElementById('viewSwitchSlider');
     const active = document.querySelector('.view-btn.active');
     if (!slider || !active) return;
+    // The slider is absolutely positioned at left:0 of the switch's padding box, and
+    // the button's offsetLeft is measured from the same origin — so align 1:1 with
+    // no fudge factor. (The old −3 was tuned for a since-changed padding value.)
     slider.style.width = `${active.offsetWidth}px`;
-    slider.style.transform = `translateX(${active.offsetLeft - 3}px)`;
+    slider.style.transform = `translateX(${active.offsetLeft}px)`;
 }
 
 // ── View Switching ─────────────────────────────

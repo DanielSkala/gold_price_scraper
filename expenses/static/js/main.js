@@ -18,6 +18,7 @@ import { openNewCategoryDialog } from './categories.js';
 import { setDailyMode } from './charts_monthly.js';
 import { toggleTheme, initTheme } from './theme.js';
 import { toggleSidebar, initSidebar } from './sidebar.js';
+import { initOnboarding } from './onboarding.js';
 
 // Side-effect modules: register their DOM listeners / startup behaviour.
 import './loading.js';
@@ -34,6 +35,8 @@ window.addEventListener('load', positionViewSlider);
 window.addEventListener('resize', positionViewSlider);
 // Sidebar (data & settings drawer).
 initSidebar();
+// Onboarding / empty-state prompt (first run with no data).
+initOnboarding();
 
 window.App = {
     switchView, handleMonthChange, stepMonth,

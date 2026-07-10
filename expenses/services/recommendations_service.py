@@ -204,15 +204,18 @@ def _analyse_category_trends(monthly_sums, recent_months, avg_cat):
         # Flag a meaningful, sustained increase over the user's own norm.
         if growth >= 0.25 and excess >= 15:
             label = _pretty(cat)
+            tip, tip_saving = _best_tip(cat, recent_avg)
+            # Saving = the reachable slice of the increase, but at least the tip's estimate.
+            saving = max(excess * 0.5, tip_saving * 0.6)
             recs.append(_rec(
                 f"trend_{cat}",
-                f"{label.capitalize()} is trending up",
-                f"Your {label} is about €{recent_avg:.0f}/mo lately — {growth * 100:.0f}% above "
-                f"your usual €{base_avg:.0f}/mo (€{excess:.0f}/mo more). Worth a look.",
-                excess * 0.5,   # a reachable slice of the increase
+                tip["title"],
+                f"{tip['action']} Your {label} has climbed to ~€{recent_avg:.0f}/mo — "
+                f"{growth * 100:.0f}% above your usual €{base_avg:.0f}/mo.",
+                saving,
                 cat, "trend",
                 severity="watch" if growth < 0.6 else "alert",
-                assumption=f"Compared to your own {len(baseline_months)}-month average, not an external benchmark.",
+                assumption=f"Est. ~{round(tip['save_frac']*100)}% of spend · {tip['source']}. Trend vs your own {len(baseline_months)}-month average.",
             ))
     return recs
 
@@ -240,21 +243,33 @@ def _analyse_top_categories(avg_cat, goal, existing_ids):
         if any(cid.endswith(cat) or cid == f"trend_{cat}" for cid in existing_ids):
             continue
         label = _pretty(cat)
+        tip, saving = _best_tip(cat, spent)
         recs.append(_rec(
             f"top_{cat}",
-            f"{label.capitalize()} is a big slice",
-            f"{label.capitalize()} is about €{spent:.0f}/mo — {share * 100:.0f}% of your spending. "
-            f"Trimming it 10% would save €{spent * 0.1:.0f}/mo.",
-            spent * 0.10,
+            tip["title"],
+            f"{tip['action']} {label.capitalize()} is one of your biggest categories at "
+            f"~€{spent:.0f}/mo ({share * 100:.0f}% of spending).",
+            saving,
             cat, "top", severity="tip",
+            assumption=f"Est. saving ~{round(tip['save_frac']*100)}% of spend · {tip['source']}.",
         ))
     return recs
 
 
+def _best_tip(cat, spent):
+    """Pick the highest-impact actionable tip for a category, and quantify its
+    saving from the tip's save_frac applied to the user's actual spend."""
+    tips = kb.tips_for_category(cat)
+    best = max(tips, key=lambda t: t.get("save_frac", 0))
+    saving = spent * best.get("save_frac", 0.1)
+    return best, saving
+
+
 def _analyse_vs_benchmarks(avg_cat):
-    """Flag categories where the user is well above a typical single-person norm.
-    Only fires for categories that HAVE a benchmark; everything else is covered by
-    the generic self-baseline analyser above, so new categories are never ignored."""
+    """Flag categories above a typical single-person norm — and, crucially, tell the
+    user WHAT TO DO about it (a concrete lifestyle change), quantified from their own
+    spend. Only fires for categories that HAVE a benchmark; the generic self-baseline
+    analyser covers everything else, so new categories are never ignored."""
     recs = []
     for cat, bench in kb.BENCHMARKS_MONTHLY.items():
         spent = avg_cat.get(cat, 0.0)
@@ -264,15 +279,16 @@ def _analyse_vs_benchmarks(avg_cat):
         ratio = spent / ref
         if ratio >= 1.5:
             over = spent - ref
+            tip, saving = _best_tip(cat, spent)
             recs.append(_rec(
                 f"benchmark_{cat.replace(' ', '_')}",
-                f"{cat.capitalize()} is above average",
-                f"Your {cat} (~€{spent:.0f}/mo) is {ratio:.1f}× what {bench['label']} spends "
-                f"(~€{ref:.0f}/mo) — about €{over:.0f}/mo more.",
-                over * 0.5,  # a conservative, reachable slice of the gap
+                tip["title"],   # the ACTION is the headline, not the observation
+                f"{tip['action']} Your {cat} runs ~€{spent:.0f}/mo — {ratio:.1f}× what "
+                f"{bench['label']} spends (~€{ref:.0f}/mo), so there's room to trim.",
+                saving,
                 cat, "benchmark",
                 severity="watch" if ratio < 2.2 else "alert",
-                assumption=f"Benchmark source: {bench['source']}.",
+                assumption=f"Est. saving ~{round(tip['save_frac']*100)}% of spend · {tip['source']}. Benchmark: {bench['source']}.",
             ))
     return recs
 

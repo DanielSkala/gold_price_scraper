@@ -70,7 +70,7 @@ export function renderTransactionsTable(filteredTransactions = null) {
                             <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
                             <td style="font-weight:500;">${tx.merchant}</td>
                             <td>${categoryBadgeHtml(tx)}</td>
-                            <td style="text-align:right;font-family:'Newsreader',serif;color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
+                            <td style="text-align:right;font-family:var(--font-serif);color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -80,7 +80,7 @@ export function renderTransactionsTable(filteredTransactions = null) {
                     <button onclick="App.loadMoreTransactions()" style="
                         padding:8px 20px;border:1px solid var(--border);border-radius:6px;
                         background:transparent;color:var(--text-2);cursor:pointer;
-                        font-weight:500;font-size:0.82rem;font-family:'Outfit',sans-serif;
+                        font-weight:500;font-size:0.82rem;font-family:var(--font-sans);
                         transition:all 0.12s ease;
                     " onmouseover="this.style.background='var(--text)';this.style.color='white';this.style.borderColor='var(--text)'"
                        onmouseout="this.style.background='transparent';this.style.color='var(--text-2)';this.style.borderColor='var(--border)'">
@@ -134,7 +134,7 @@ export function renderMonthlyTransactionsTable(filteredTransactions = null) {
                         <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
                         <td style="font-weight:500;">${tx.merchant}</td>
                         <td>${categoryBadgeHtml(tx)}</td>
-                        <td style="text-align:right;font-family:'Newsreader',serif;color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
+                        <td style="text-align:right;font-family:var(--font-serif);color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
                     </tr>
                 `).join('')}
             </tbody>

@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { sourceLink } from './sources.js';
 
 // ── Fun facts: your spending vs. national / EU averages ───────────────────
 // Compares the user's average MONTHLY spend per category against rough benchmark
@@ -10,14 +11,14 @@ import { state } from './state.js';
 // They're deliberately ballpark — this is a fun feature, not accounting.
 
 const BENCHMARKS = {
-    // category key → { avg: €/month for an average Slovak, label, icon, ctx }
-    groceries:    { avg: 260, label: 'groceries', icon: 'fa-basket-shopping', ctx: 'an average Slovak' },
-    gas_stations: { avg: 120, label: 'fuel',      icon: 'fa-gas-pump',        ctx: 'a typical Slovak driver' },
-    eating_out:   { avg: 90,  label: 'eating out', icon: 'fa-utensils',       ctx: 'an average Slovak' },
-    bolt:         { avg: 30,  label: 'taxis',      icon: 'fa-taxi',           ctx: 'an average city commuter' },
-    travel:       { avg: 110, label: 'travel',     icon: 'fa-plane',          ctx: 'an average European' },
-    parking:      { avg: 25,  label: 'parking',    icon: 'fa-square-parking', ctx: 'a typical Slovak driver' },
-    car_wash:     { avg: 12,  label: 'car care',   icon: 'fa-car',            ctx: 'an average driver' },
+    // category key → { avg: €/month for an average Slovak, label, icon, ctx, src }
+    groceries:    { avg: 260, label: 'groceries', icon: 'fa-basket-shopping', ctx: 'an average Slovak', src: 'Numbeo Slovakia food basket, 2025' },
+    gas_stations: { avg: 120, label: 'fuel',      icon: 'fa-gas-pump',        ctx: 'a typical Slovak driver', src: 'Numbeo fuel price × avg usage' },
+    eating_out:   { avg: 90,  label: 'eating out', icon: 'fa-utensils',       ctx: 'an average Slovak', src: 'Eurostat 2024 restaurants share' },
+    bolt:         { avg: 30,  label: 'taxis',      icon: 'fa-taxi',           ctx: 'an average city commuter', src: 'Numbeo Slovakia taxi tariff' },
+    travel:       { avg: 110, label: 'travel',     icon: 'fa-plane',          ctx: 'an average European', src: 'Eurostat 2024 recreation/travel' },
+    parking:      { avg: 25,  label: 'parking',    icon: 'fa-square-parking', ctx: 'a typical Slovak driver', src: 'Numbeo Slovakia parking' },
+    car_wash:     { avg: 12,  label: 'car care',   icon: 'fa-car',            ctx: 'an average driver', src: 'typical wash cadence' },
 };
 
 // A few cross-category "you spend on X what an average family spends on Y" lines.
@@ -52,7 +53,7 @@ function compare(userAvg, bench) {
         tone = 'neg';
         text = `Your <strong>${bench.label}</strong> spend is <strong>${Math.round(ratio)}×</strong> what ${bench.ctx} spends: <strong>${fmt(userAvg)}</strong> vs ${fmt(bench.avg)}/mo.`;
     }
-    return { tone, text, icon: bench.icon };
+    return { tone, text, icon: bench.icon, src: bench.src };
 }
 
 // Pick a relatable cross-reference for a category's monthly spend.
@@ -71,7 +72,7 @@ function relatableLine(userAvg, label) {
         tone: 'neutral',
         icon: 'fa-lightbulb',
         text: `Your monthly <strong>${label}</strong> spend equals <strong>${best.mult}×</strong> ${best.text}.`,
-        meta: 'Fun comparison',
+        src: 'Numbeo Slovakia reference prices',
     };
 }
 
@@ -108,11 +109,15 @@ export function renderFunFacts() {
         return;
     }
     if (section) section.style.display = '';
-    // Small tiles: a muted pastel icon + concise comparison text.
+    // Small tiles: a muted pastel icon + concise comparison text + a source line.
+    const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     host.innerHTML = facts.slice(0, 4).map(f => `
         <div class="ov-tile tone-${f.tone}">
             <span class="ov-tile-ico"><i class="fas ${f.icon}"></i></span>
-            <span class="ov-tile-text">${f.text}</span>
+            <span class="ov-tile-body">
+                <span class="ov-tile-text">${f.text}</span>
+                ${f.src ? `<span class="ov-tile-src"><i class="fas fa-book"></i> ${sourceLink(f.src)}</span>` : ''}
+            </span>
         </div>
     `).join('');
 }
