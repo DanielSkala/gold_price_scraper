@@ -1,0 +1,412 @@
+        :root {
+            /* ── Typography (Apple system fonts: SF Pro + New York) ──
+               Default to the platform's own faces — they ship optical sizing,
+               tracking tables and legibility tuning. Custom faces only as fallback. */
+            --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+                         system-ui, "Segoe UI", "Outfit", sans-serif;
+            /* Numbers & large headings: SF Pro Display feel — same stack, but used with
+               tabular figures + tight negative tracking on the display/number classes. */
+            --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+                            system-ui, "Outfit", sans-serif;
+            --font-serif: var(--font-display);   /* legacy alias → SF display (no serif in a dashboard) */
+
+            /* ── Neutrals (warm cream) ── */
+            --bg: #f5f5f7;          /* Apple's light system gray */
+            --surface: #ffffff;
+            --surface-2: #fbfbfd;   /* faintly recessed panel */
+            --border: #e6e6ea;
+            --border-light: #f0f0f3;
+            --text: #1d1d1f;        /* Apple near-black */
+            --text-2: #56565c;
+            --text-3: #8e8e93;      /* Apple secondary label gray */
+            --hairline: rgba(0,0,0,0.08);
+
+            /* ── Translucent materials (approximate SF materials via backdrop-filter) ── */
+            --mat-regular: rgba(255,255,255,0.72);
+            --mat-thick: rgba(255,255,255,0.82);
+            --mat-chrome: rgba(250,250,252,0.7);
+            --mat-blur: 20px;
+            --mat-blur-thick: 30px;
+
+            /* ── PRIMARY (blue — interactive / important UI) ── */
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-tint: #dbeafe;
+            --primary-bg: #eff6ff;
+            --primary-border: #bfdbfe;
+            --accent: var(--primary);        /* back-compat */
+            --accent-bg: var(--primary-bg);  /* back-compat */
+
+            /* ── SEMANTIC (meaning only — never decoration) ── */
+            --neg: #b91c1c;    --neg-bg: #fef2f2;    --neg-border: #fecaca;   /* unwanted / negative / loss */
+            --pos: #15803d;    --pos-bg: #f0fdf4;    --pos-border: #bbf7d0;   /* wanted / positive / gain */
+            --caution: #b45309; --caution-bg: #fffbeb; --caution-border: #fde68a; /* attention / watch */
+            --red: var(--neg);    --red-bg: var(--neg-bg);      /* back-compat */
+            --green: var(--pos);  --green-bg: var(--pos-bg);    /* back-compat */
+
+            /* ── GOLD (asset identity, not semantic) ── */
+            --gold: #D4AF37;
+            --gold-deep: #92711c;
+
+            /* Continuous-curvature-ish radii (larger, softer — Apple's rounded rects). */
+            --radius-sm: 10px;
+            --radius: 16px;
+            --radius-lg: 22px;
+            --radius-pill: 999px;
+            /* Layered, soft shadows — ambient + key light, low opacity. */
+            --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.06), 0 12px 34px rgba(0,0,0,0.08);
+            --shadow-pop: 0 8px 20px rgba(0,0,0,0.10), 0 24px 60px rgba(0,0,0,0.14);
+
+            /* Motion — spring-like eases (approximate critically-damped / gentle-bounce). */
+            --ease-out: cubic-bezier(0.32, 0.72, 0, 1);          /* snappy settle, no overshoot */
+            --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);      /* slight overshoot for momentum */
+            --dur-fast: 140ms;
+            --dur-mid: 300ms;
+            --dur-slow: 420ms;
+
+            /* Plotly-facing tokens (read by JS at render time). */
+            --chart-bg: #ffffff;
+            --chart-grid: #ececf0;
+            --chart-ink: #56565c;
+            color-scheme: light;
+        }
+
+        /* ── Dark mode ──────────────────────────────────
+           A warm, deep charcoal palette (not pure black) that keeps the cream-era
+           warmth. Only tokens change — every component reads them, so the whole app
+           follows. Semantic/primary hues are nudged brighter for contrast on dark. */
+        [data-theme="dark"] {
+            --bg: #000000;          /* true black base, elevated surfaces on top (Apple dark) */
+            --surface: #1c1c1e;     /* elevated system gray 1 */
+            --surface-2: #2c2c2e;   /* system gray 2 */
+            --border: #38383a;
+            --border-light: #2a2a2c;
+            --text: #f5f5f7;
+            --text-2: #aeaeb2;
+            --text-3: #8e8e93;
+            --hairline: rgba(255,255,255,0.10);
+
+            --mat-regular: rgba(40,40,43,0.66);
+            --mat-thick: rgba(44,44,47,0.8);
+            --mat-chrome: rgba(28,28,30,0.7);
+
+            --primary: #60a5fa;
+            --primary-hover: #93c5fd;
+            --primary-tint: #1e3a5f;
+            --primary-bg: #17263c;
+            --primary-border: #2b4a6f;
+
+            --neg: #f87171;    --neg-bg: #2c1a1a;    --neg-border: #5a2a2a;
+            --pos: #4ade80;    --pos-bg: #16281c;    --pos-border: #2c4a34;
+            --caution: #fbbf24; --caution-bg: #2c2410; --caution-border: #5a4a1e;
+            --red: var(--neg);    --red-bg: var(--neg-bg);
+            --green: var(--pos);  --green-bg: var(--pos-bg);
+
+            --gold: #e6c34d;
+            --gold-deep: #c9a227;
+
+            --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+            --shadow-pop: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5);
+
+            --chart-bg: #1c1c1e;
+            --chart-grid: #333335;
+            --chart-ink: #aeaeb2;
+            color-scheme: dark;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-variant-numeric: tabular-nums;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            line-height: 1.47;   /* comfortable body leading */
+            letter-spacing: -0.003em;
+        }
+
+        /* ── Topbar ─────────────────────────────────── */
+        .topbar {
+            /* Translucent chrome layer — content scrolls underneath (Apple material). */
+            background: var(--mat-chrome);
+            -webkit-backdrop-filter: saturate(180%) blur(var(--mat-blur));
+            backdrop-filter: saturate(180%) blur(var(--mat-blur));
+            border-bottom: 1px solid var(--hairline);
+            padding: 0 28px;
+            /* 3 zones: brand | centered switch | controls. Side zones share width so
+               the center switch stays put no matter what appears on the right. */
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-brand {
+            font-family: var(--font-sans);
+            font-size: 1.16rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;   /* tighten large-ish text */
+            color: var(--text);
+            justify-self: start;
+        }
+
+        .topbar-brand span {
+            color: var(--text-3);
+            font-weight: 400;
+            margin-left: 7px;
+            font-size: 0.82rem;
+            letter-spacing: 0;
+        }
+
+        .view-switch { justify-self: center; }
+
+        .topbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-self: end;
+        }
+
+        /* Apple segmented control: tinted track, white floating thumb, sliding indicator. */
+        .view-switch {
+            position: relative;
+            display: inline-flex;
+            background: color-mix(in srgb, var(--text) 7%, transparent);
+            border-radius: var(--radius-pill);
+            padding: 2px;
+        }
+        .view-switch-slider {
+            position: absolute;
+            top: 2px; bottom: 2px; left: 0;
+            width: 0; /* set by JS */
+            background: var(--surface);
+            border-radius: var(--radius-pill);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.06);
+            transition: transform var(--dur-mid) var(--ease-out), width var(--dur-mid) var(--ease-out);
+            z-index: 0;
+        }
+        .view-btn {
+            position: relative;
+            z-index: 1;
+            padding: 6px 17px;
+            border: none;
+            border-radius: var(--radius-pill);
+            background: transparent;
+            color: var(--text-2);
+            cursor: pointer;
+            transition: color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+            font-weight: 500;
+            font-size: 0.83rem;
+            letter-spacing: -0.01em;
+            font-family: var(--font-sans);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .view-btn:hover { color: var(--text); }
+        .view-btn.active { color: var(--text); font-weight: 590; }
+        .view-btn:active { transform: scale(0.96); }
+
+        #monthSelector {
+            padding: 7px 30px 7px 13px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-pill);
+            background: color-mix(in srgb, var(--text) 6%, transparent);
+            color: var(--text);
+            font-family: var(--font-sans);
+            font-weight: 500;
+            font-size: 0.82rem;
+            letter-spacing: -0.01em;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 11px center;
+            display: none;
+            min-width: 168px;
+            transition: background var(--dur-fast) ease;
+        }
+
+        #monthSelector:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
+
+        .outlier-toggle {
+            padding: 7px 15px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-pill);
+            background: color-mix(in srgb, var(--text) 6%, transparent);
+            color: var(--text-2);
+            cursor: pointer;
+            transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+            font-weight: 500;
+            font-size: 0.82rem;
+            letter-spacing: -0.01em;
+            font-family: var(--font-sans);
+            margin-left: 8px;
+        }
+
+        .outlier-toggle:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+        .outlier-toggle:active { transform: scale(0.96); }
+        .outlier-toggle.active {
+            background: var(--neg);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* ── Round icon controls (theme + sidebar toggles) ── */
+        .theme-toggle, .sidebar-toggle {
+            width: 34px; height: 34px;
+            border: 1px solid var(--hairline);
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--text) 6%, transparent);
+            color: var(--text-2);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.88rem;
+            transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .theme-toggle { margin-left: 8px; }
+        .theme-toggle:hover, .sidebar-toggle:hover { background: color-mix(in srgb, var(--text) 11%, transparent); color: var(--text); }
+        .theme-toggle:active, .sidebar-toggle:active { transform: scale(0.9); }
+
+        /* ── Sidebar toggle + brand group ── */
+        .topbar-left { display: flex; align-items: center; gap: 12px; justify-self: start; }
+
+        /* ── Collapsible sidebar drawer (translucent material sheet) ── */
+        .sidebar-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.28);
+            -webkit-backdrop-filter: blur(2px);
+            backdrop-filter: blur(2px);
+            opacity: 0; pointer-events: none;
+            transition: opacity var(--dur) ease;
+            z-index: 300;
+        }
+        .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 366px; max-width: 88vw;
+            background: var(--mat-thick);
+            -webkit-backdrop-filter: saturate(180%) blur(var(--mat-blur-thick));
+            backdrop-filter: saturate(180%) blur(var(--mat-blur-thick));
+            border-right: 1px solid var(--hairline);
+            box-shadow: var(--shadow-pop);
+            transform: translateX(-102%);
+            transition: transform var(--dur-slow) var(--ease-out);
+            z-index: 301;
+            display: flex; flex-direction: column;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 22px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .sidebar-title { font-family: var(--font-sans); font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+        .sidebar-close {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: none; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text-2);
+            cursor: pointer; font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .sidebar-close:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+        .sidebar-close:active { transform: scale(0.9); }
+        .sidebar-scroll { overflow-y: auto; padding: 8px 22px 24px; }
+        .sidebar-section { padding: 16px 0; border-bottom: 1px solid var(--border-light); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar-section-head { display: flex; align-items: baseline; justify-content: space-between; }
+        .sidebar-section-title {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
+        }
+        .sidebar-count { font-size: 0.72rem; color: var(--text-3); }
+
+        .sidebar-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .sidebar-field > span { font-size: 0.85rem; color: var(--text-2); }
+        .sidebar-field-row { flex-direction: row; align-items: center; justify-content: space-between; }
+        .sidebar-goal {
+            display: flex; align-items: center; gap: 4px;
+            border: 1px solid var(--hairline); border-radius: var(--radius-sm); padding: 9px 13px;
+            background: var(--surface);
+            transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+        }
+        .sidebar-goal:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+        .sidebar-goal-cur { color: var(--text-3); }
+        .sidebar-goal input {
+            border: none; background: none; outline: none;
+            font-family: var(--font-sans); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text);
+            width: 100%;
+        }
+        /* Little toggle switch */
+        .sidebar-switch {
+            width: 42px; height: 24px; border-radius: 999px;
+            border: none; background: var(--border); cursor: pointer;
+            position: relative; transition: background 0.2s ease; padding: 0;
+        }
+        .sidebar-switch span {
+            position: absolute; top: 3px; left: 3px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+        }
+        .sidebar-switch.on { background: var(--primary); }
+        .sidebar-switch.on span { transform: translateX(18px); }
+
+        /* Upload + report list */
+        .report-upload {
+            display: flex; align-items: center; gap: 9px;
+            padding: 13px 15px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-2);
+            font-size: 0.85rem; font-weight: 500;
+            cursor: pointer;
+            transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background var(--dur-fast) ease;
+        }
+        .report-upload:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+        .report-upload i { font-size: 0.8rem; }
+        .report-upload-msg { font-size: 0.78rem; margin: 8px 2px 0; min-height: 1em; }
+        .report-upload-msg.ok { color: var(--pos); }
+        .report-upload-msg.error { color: var(--neg); }
+        .report-list { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+        .report-loading, .report-empty { color: var(--text-3); font-size: 0.82rem; padding: 8px 2px; }
+        .report-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 13px;
+            border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+            background: var(--surface);
+            transition: box-shadow var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .report-item:hover { box-shadow: var(--shadow); }
+        .report-item-main { flex: 1; min-width: 0; }
+        .report-period { font-size: 0.86rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+        .report-meta {
+            font-size: 0.74rem; color: var(--text-3); margin-top: 2px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .report-del {
+            flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+            border: none; background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text-3);
+            cursor: pointer; font-size: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .report-del:hover { background: var(--neg); color: #fff; }
+        .report-del:active { transform: scale(0.9); }
+
+        /* ── Main Layout ────────────────────────────── */
+        .dashboard-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 28px 32px;
+        }
+

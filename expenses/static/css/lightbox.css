@@ -1,0 +1,63 @@
+        /* ── Photo Lightbox ──────────────────────────── */
+        .photo-lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.72);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            backdrop-filter: blur(24px) saturate(160%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 40px;
+        }
+        .photo-lightbox.open { display: flex; animation: newcat-fade var(--dur) ease; }
+        .photo-lightbox-inner {
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+            animation: lightbox-pop var(--dur-slow) var(--ease-out);
+        }
+        @keyframes lightbox-pop {
+            from { transform: scale(0.96); opacity: 0; }
+            to   { transform: none; opacity: 1; }
+        }
+        .photo-lightbox-inner img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: var(--radius);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .photo-lightbox-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            color: white;
+            font-size: 0.88rem;
+        }
+        .photo-lightbox-bar a, .photo-lightbox-bar button {
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: var(--radius-pill);
+            border: none;
+            background: rgba(255,255,255,0.18);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 0.85rem; font-weight: 500;
+            transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .photo-lightbox-bar button { width: 36px; height: 36px; padding: 0; }
+        .photo-lightbox-bar a:hover, .photo-lightbox-bar button:hover { background: rgba(255,255,255,0.3); }
+        .photo-lightbox-bar a:active, .photo-lightbox-bar button:active { transform: scale(0.94); }
+

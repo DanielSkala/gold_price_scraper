@@ -4,611 +4,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expenses</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <!-- Apply saved theme before first paint to avoid a light-mode flash. -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            } catch (e) {}
+        })();
+    </script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #f7f6f3;
-            --surface: #ffffff;
-            --border: #e8e6e1;
-            --border-light: #f0eeea;
-            --text: #1c1917;
-            --text-2: #57534e;
-            --text-3: #a8a29e;
-            --accent: #2563eb;
-            --accent-bg: #eff6ff;
-            --red: #b91c1c;
-            --red-bg: #fef2f2;
-            --green: #15803d;
-            --green-bg: #f0fdf4;
-            --radius: 10px;
-            --shadow: 0 1px 3px rgba(28,25,23,0.06);
-            --shadow-lg: 0 4px 12px rgba(28,25,23,0.08);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            font-variant-numeric: tabular-nums;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* ── Topbar ─────────────────────────────────── */
-        .topbar {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 64px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .topbar-brand {
-            font-family: 'Newsreader', serif;
-            font-size: 1.35rem;
-            font-weight: 500;
-            letter-spacing: -0.01em;
-            color: var(--text);
-        }
-
-        .topbar-brand span {
-            color: var(--text-3);
-            font-weight: 300;
-            margin-left: 8px;
-            font-size: 0.85rem;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .topbar-nav {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .view-btn {
-            padding: 7px 16px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: transparent;
-            color: var(--text-2);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            font-weight: 500;
-            font-size: 0.82rem;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .view-btn:hover { background: var(--border-light); color: var(--text); }
-        .view-btn.active {
-            background: var(--text);
-            color: var(--surface);
-            border-color: var(--text);
-        }
-
-        #monthSelector {
-            padding: 7px 28px 7px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--surface);
-            color: var(--text);
-            font-family: 'Outfit', sans-serif;
-            font-weight: 500;
-            font-size: 0.82rem;
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2378716c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            display: none;
-            min-width: 170px;
-        }
-
-        #monthSelector:hover { border-color: var(--text-3); }
-
-        .outlier-toggle {
-            padding: 7px 14px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: transparent;
-            color: var(--text-2);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            font-weight: 500;
-            font-size: 0.82rem;
-            font-family: 'Outfit', sans-serif;
-            margin-left: 8px;
-        }
-
-        .outlier-toggle:hover { background: var(--red-bg); color: var(--red); border-color: #fecaca; }
-        .outlier-toggle.active {
-            background: var(--red);
-            color: white;
-            border-color: var(--red);
-        }
-
-        /* ── Main Layout ────────────────────────────── */
-        .dashboard-container {
-            max-width: 1440px;
-            margin: 0 auto;
-            padding: 28px 32px;
-        }
-
-        /* ── Stats Cards ────────────────────────────── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 18px 20px;
-            position: relative;
-            overflow: hidden;
-            transition: box-shadow 0.15s ease;
-        }
-
-        .stat-card:hover { box-shadow: var(--shadow-lg); }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: var(--stat-accent, var(--accent));
-        }
-
-        .stat-icon { display: none; }
-
-        .stat-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-3);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 6px;
-        }
-
-        .stat-value {
-            font-family: 'Newsreader', serif;
-            font-size: 1.65rem;
-            font-weight: 400;
-            color: var(--text);
-            letter-spacing: -0.02em;
-            line-height: 1.1;
-        }
-
-        .stat-sub {
-            font-size: 0.8rem;
-            color: var(--text-3);
-            margin-top: 4px;
-        }
-
-        .stat-trend {
-            font-size: 0.75rem;
-            margin-top: 8px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        .trend-up { background: var(--red-bg); color: var(--red); }
-        .trend-down { background: var(--green-bg); color: var(--green); }
-
-        /* ── View Containers ────────────────────────── */
-        .view-container { display: none; }
-        .view-container.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ── Outlier Panel ──────────────────────────── */
-        .outlier-panel {
-            background: var(--surface);
-            border: 1px solid #fecaca;
-            border-left: 3px solid var(--red);
-            border-radius: var(--radius);
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            display: none;
-        }
-
-        .outlier-panel.visible {
-            display: block;
-            animation: fadeIn 0.25s ease;
-        }
-
-        .outlier-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .outlier-panel-header h3 {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--red);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .outlier-summary {
-            display: flex;
-            gap: 20px;
-            font-size: 0.82rem;
-            color: var(--text-2);
-        }
-
-        .outlier-summary strong { color: var(--red); }
-
-        .outlier-list {
-            max-height: 360px;
-            overflow-y: auto;
-            margin-top: 14px;
-            border-top: 1px solid var(--border-light);
-            padding-top: 12px;
-        }
-
-        .outlier-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 12px;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            transition: background 0.1s ease;
-        }
-
-        .outlier-item:hover { background: var(--red-bg); }
-        .outlier-item-left { display: flex; flex-direction: column; gap: 1px; }
-        .outlier-merchant { font-weight: 500; font-size: 0.88rem; color: var(--text); }
-        .outlier-meta { font-size: 0.78rem; color: var(--text-3); }
-        .outlier-amount { font-family: 'Newsreader', serif; font-weight: 400; font-size: 1rem; color: var(--red); }
-
-        /* ── Chart Containers ───────────────────────── */
-        .overview-grid {
-            display: grid;
-            grid-template-columns: 5fr 3fr;
-            gap: 14px;
-            margin-bottom: 24px;
-        }
-
-        .monthly-grid {
-            display: grid;
-            grid-template-columns: 390px 1fr;
-            gap: 14px;
-            margin-bottom: 24px;
-        }
-
-        .chart-container {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 24px;
-            transition: box-shadow 0.15s ease;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-container:hover { box-shadow: var(--shadow-lg); }
-        .chart-container { min-width: 0; }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .chart-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .chart-filters { display: flex; gap: 4px; }
-
-        .filter-btn {
-            padding: 5px 12px;
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            background: transparent;
-            color: var(--text-2);
-            cursor: pointer;
-            transition: all 0.12s ease;
-            font-weight: 500;
-            font-size: 0.78rem;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .filter-btn:hover { background: var(--border-light); }
-        .filter-btn.active {
-            background: var(--text);
-            color: var(--surface);
-            border-color: var(--text);
-        }
-
-        /* ── Transactions ───────────────────────────── */
-        .transactions-section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 24px;
-        }
-
-        .transactions-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .search-box {
-            padding: 8px 14px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            width: 260px;
-            font-size: 0.82rem;
-            font-family: 'Outfit', sans-serif;
-            transition: border-color 0.15s ease;
-            background: var(--bg);
-            color: var(--text);
-        }
-
-        .search-box:focus {
-            outline: none;
-            border-color: var(--accent);
-            background: var(--surface);
-        }
-
-        .transaction-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .transaction-table th,
-        .transaction-table td {
-            padding: 10px 14px;
-            text-align: left;
-            font-size: 0.85rem;
-        }
-
-        .transaction-table th {
-            border-bottom: 2px solid var(--border);
-            font-weight: 600;
-            color: var(--text-3);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-        }
-
-        .transaction-table th:hover { color: var(--text); }
-
-        .sort-arrow {
-            position: absolute;
-            right: 4px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.7rem;
-            color: var(--text-3);
-        }
-
-        .transaction-table td { border-bottom: 1px solid var(--border-light); }
-        .transaction-table tbody tr { transition: background 0.1s ease; }
-        .transaction-table tbody tr:hover { background: var(--bg); }
-
-        /* ── Category Badges ────────────────────────── */
-        .category-badge {
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: capitalize;
-            cursor: pointer;
-            transition: opacity 0.15s ease;
-            display: inline-block;
-        }
-
-        .category-badge:hover { opacity: 0.75; }
-
-        .groceries    { background: #f0fdfa; color: #0d9488; }
-        .eating-out   { background: #fffbeb; color: #d97706; }
-        .bolt         { background: #f5f3ff; color: #7c3aed; }
-        .car-wash     { background: #f0fdf4; color: #059669; }
-        .gas-stations { background: #fff7ed; color: #ea580c; }
-        .parking      { background: #eff6ff; color: #2563eb; }
-        .nabytok      { background: #fdf2f8; color: #db2777; }
-        .oil-partner  { background: #f7fee7; color: #4d7c0f; }
-        .travel       { background: #ecfeff; color: #0891b2; }
-        .other        { background: #f5f5f4; color: #6b7280; }
-
-        /* ── Side Panel ─────────────────────────────── */
-        .side-panel {
-            position: fixed;
-            top: 0;
-            right: -420px;
-            width: 420px;
-            height: 100vh;
-            background: var(--surface);
-            border-left: 1px solid var(--border);
-            box-shadow: -8px 0 24px rgba(28,25,23,0.08);
-            transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .side-panel.open { right: 0; }
-
-        .side-panel-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            background: var(--surface);
-            z-index: 1;
-        }
-
-        .side-panel-header h3 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            text-transform: capitalize;
-        }
-
-        .close-panel {
-            background: none;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-2);
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            font-size: 0.85rem;
-        }
-
-        .close-panel:hover { background: var(--bg); color: var(--text); }
-
-        .side-panel-content { padding: 20px 24px; }
-
-        .category-summary {
-            background: var(--bg);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid var(--border-light);
-        }
-
-        .transaction-item {
-            padding: 12px 14px;
-            border-bottom: 1px solid var(--border-light);
-            transition: background 0.1s ease;
-            cursor: default;
-        }
-
-        .transaction-item:last-child { border-bottom: none; }
-        .transaction-item:hover { background: var(--bg); }
-
-        /* ── Loading ────────────────────────────────── */
-        .loading {
-            text-align: center;
-            padding: 48px;
-            color: var(--text-3);
-        }
-
-        .loading i {
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-            animation: spin 1s linear infinite;
-            display: block;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .pulse-on-click { animation: none; }
-
-        /* ── Responsive ─────────────────────────────── */
-        @media (max-width: 1200px) {
-            .overview-grid { grid-template-columns: 1fr; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-            .topbar { padding: 0 16px; flex-wrap: wrap; height: auto; gap: 8px; padding: 12px 16px; }
-            .topbar-nav { flex-wrap: wrap; }
-            .dashboard-container { padding: 20px 16px; }
-            .monthly-grid { grid-template-columns: 1fr; }
-            .stats-grid { grid-template-columns: 1fr 1fr; }
-            .search-box { width: 100%; }
-            .side-panel { width: 100vw; right: -100vw; }
-            #monthSelector { min-width: 140px; }
-        }
-
-        @media (max-width: 480px) {
-            .stats-grid { grid-template-columns: 1fr; }
-        }
-
-        /* ── Gold ───────────────────────────────────── */
-        .gold-holding {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-            gap: 4px;
-            padding: 12px 14px;
-            border-bottom: 1px solid var(--border-light);
-            font-size: 0.85rem;
-            align-items: center;
-        }
-
-        .gold-holding:hover { background: var(--bg); }
-
-        .gold-holding-header {
-            font-weight: 600;
-            color: var(--text-3);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border-bottom: 2px solid var(--border);
-        }
-
-        .gold-holding-header:hover { background: transparent; }
-
-        .gold-total {
-            border-top: 2px solid var(--border);
-            font-weight: 600;
-            background: var(--bg);
-            border-radius: 0 0 var(--radius) var(--radius);
-        }
-
-        /* ── Scrollbar ──────────────────────────────── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/memories.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/misc.css') }}">
 </head>
 <body>
-    <!-- Top Navigation Bar -->
+    <!-- Top Navigation Bar — 3 zones: brand · centered view switch · controls.
+         The centered switch is locked in place regardless of the right-side controls. -->
     <nav class="topbar">
-        <div class="topbar-brand">Expenses <span>Analytics</span></div>
+        <div class="topbar-left">
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="App.toggleSidebar()" title="Data &amp; settings" aria-label="Open sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-brand">Expenses <span>Analytics</span></div>
+        </div>
+        <div class="view-switch" id="viewSwitch">
+            <span class="view-switch-slider" id="viewSwitchSlider"></span>
+            <button class="view-btn active" data-view="overview" onclick="App.switchView('overview', event)">Overview</button>
+            <button class="view-btn" data-view="monthly" onclick="App.switchView('monthly', event)">Monthly</button>
+            <button class="view-btn" data-view="gold" onclick="App.switchView('gold', event)">Gold</button>
+        </div>
         <div class="topbar-nav">
-            <button class="view-btn active" onclick="switchView('overview')">Overview</button>
-            <button class="view-btn" onclick="switchView('monthly')">Monthly</button>
-            <button class="view-btn" onclick="switchView('gold')">Gold</button>
-            <select id="monthSelector" onchange="handleMonthChange()"></select>
-            <button class="outlier-toggle" id="outlierToggle" onclick="toggleOutliers()">
+            <select id="monthSelector" onchange="App.handleMonthChange()"></select>
+            <button class="outlier-toggle" id="outlierToggle" onclick="App.toggleOutliers()">
                 <i class="fas fa-filter" style="margin-right: 4px;"></i><span id="outlierToggleText">Hide Outliers</span>
+            </button>
+            <button class="theme-toggle" id="themeToggle" onclick="App.toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
+                <i class="fas fa-moon"></i>
             </button>
         </div>
     </nav>
+
+    <!-- Collapsible left sidebar: settings + expense-report management. -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="App.toggleSidebar()"></div>
+    <aside class="sidebar" id="sidebar" aria-hidden="true">
+        <div class="sidebar-head">
+            <h2 class="sidebar-title">Data &amp; settings</h2>
+            <button class="sidebar-close" onclick="App.toggleSidebar()" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="sidebar-scroll">
+            <!-- Settings -->
+            <section class="sidebar-section">
+                <h3 class="sidebar-section-title">Settings</h3>
+                <label class="sidebar-field">
+                    <span>Monthly budget goal</span>
+                    <div class="sidebar-goal">
+                        <span class="sidebar-goal-cur">€</span>
+                        <input type="number" id="sidebarGoal" min="0" step="50" inputmode="numeric">
+                    </div>
+                </label>
+                <label class="sidebar-field sidebar-field-row">
+                    <span>Dark mode</span>
+                    <button class="sidebar-switch" id="sidebarThemeSwitch" onclick="App.toggleTheme()" role="switch"><span></span></button>
+                </label>
+            </section>
+
+            <!-- Expense reports -->
+            <section class="sidebar-section">
+                <div class="sidebar-section-head">
+                    <h3 class="sidebar-section-title">Expense reports</h3>
+                    <span class="sidebar-count" id="reportsCount"></span>
+                </div>
+                <label class="report-upload" id="reportUpload">
+                    <input type="file" id="reportFile" accept=".csv" hidden>
+                    <i class="fas fa-plus"></i><span>Add expense report (CSV)</span>
+                </label>
+                <div class="report-upload-msg" id="reportUploadMsg"></div>
+                <div class="report-list" id="reportList"></div>
+            </section>
+        </div>
+    </aside>
+
+    <!-- Onboarding / empty state: shown when there are no expense reports yet. -->
+    <div class="onboarding" id="onboarding" style="display:none;">
+        <div class="onboarding-card">
+            <div class="onboarding-icon"><i class="fas fa-wallet"></i></div>
+            <h1 class="onboarding-title">Welcome to Expenses</h1>
+            <p class="onboarding-sub">To get started, add a card-transactions export — or explore the app with sample data first.</p>
+
+            <div class="onboarding-actions">
+                <label class="onboarding-btn onboarding-btn-primary" id="onboardUpload">
+                    <input type="file" id="onboardFile" accept=".csv" hidden>
+                    <i class="fas fa-upload"></i> Upload your CSV export
+                </label>
+                <button class="onboarding-btn onboarding-btn-ghost" id="onboardSample">
+                    <i class="fas fa-flask"></i> Explore with sample data
+                </button>
+            </div>
+            <div class="onboarding-msg" id="onboardMsg"></div>
+
+            <div class="onboarding-steps">
+                <div class="onboarding-steps-title">How to export from Tatra banka</div>
+                <ol>
+                    <li>Open the <strong>Tatra banka</strong> app</li>
+                    <li>Go to <strong>Pohyby na karte</strong> (card transactions)</li>
+                    <li>Tap the icon in the <strong>top-right</strong> corner</li>
+                    <li>Select a <strong>cycle / period</strong></li>
+                    <li>Choose <strong>Export → CSV</strong></li>
+                    <li>Find it in <strong>Messages</strong> and download the file</li>
+                    <li>Upload it here 👆</li>
+                </ol>
+            </div>
+        </div>
+    </div>
 
     <div class="dashboard-container">
         <!-- Outlier Panel -->
@@ -620,19 +136,41 @@
             <div class="outlier-list" id="outlierList"></div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid" id="statsGrid"></div>
+        <!-- Stats Cards (used by the Monthly view; Overview renders its own header) -->
+        <div class="stats-grid" id="statsGrid" style="display:none;"></div>
 
         <!-- Long-term Overview -->
         <div class="view-container active" id="overviewView">
+            <!-- Experiment: full photo mosaic (corner-to-corner) with liquid-glass panels -->
+            <div class="overview-header overview-mosaic-header" id="overviewHeader">
+                <!-- Back layer: rectangular photo mosaic filling the whole card -->
+                <div class="mosaic-grid" id="mosaicGrid"></div>
+                <!-- Darkening + color scrim so glass text stays legible over any photos -->
+                <div class="mosaic-scrim"></div>
+                <!-- Front layer: liquid-glass content panels -->
+                <div class="mosaic-content">
+                    <div class="glass-panel glass-intro">
+                        <div class="overview-eyebrow">All time</div>
+                        <h1 class="overview-title">Your spending at a glance</h1>
+                        <div class="overview-stats" id="overviewStats"></div>
+                    </div>
+                    <div class="glass-panel glass-days">
+                        <div class="overview-bubbles-label">Your biggest spend days</div>
+                        <div class="glass-days-list" id="spendBubbles"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spending Trends stays immediately visible, right under the header. -->
             <div class="overview-grid">
                 <div class="chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Spending Trends</h3>
                         <div class="chart-filters">
-                            <button class="filter-btn active" onclick="toggleChart('line')">Line</button>
-                            <button class="filter-btn" onclick="toggleChart('bar')">Bar</button>
-                            <button class="filter-btn" onclick="toggleChart('area')">Area</button>
+                            <button class="filter-btn goal-edit-btn" id="goalEditBtn" onclick="App.toggleGoalEdit()" title="Adjust the monthly goal"><i class="fas fa-pen" style="margin-right:5px;"></i>Edit goal</button>
+                            <button class="filter-btn active" onclick="App.toggleChart('line', event)">Line</button>
+                            <button class="filter-btn" onclick="App.toggleChart('bar', event)">Bar</button>
+                            <button class="filter-btn" onclick="App.toggleChart('area', event)">Area</button>
                         </div>
                     </div>
                     <div id="monthlyChart" style="flex: 1; min-height: 400px;"></div>
@@ -642,15 +180,42 @@
                     <div class="chart-header">
                         <h3 class="chart-title">Categories</h3>
                         <div class="chart-filters">
-                            <button class="filter-btn active" onclick="toggleCategoryView('total')">Total</button>
-                            <button class="filter-btn" onclick="toggleCategoryView('average')">Avg</button>
-                            <button class="filter-btn" onclick="toggleCategoryView('last_3')">Last 3mo</button>
+                            <button class="filter-btn active" onclick="App.toggleCategoryView('total', event)">Total</button>
+                            <button class="filter-btn" onclick="App.toggleCategoryView('average', event)">Avg</button>
+                            <button class="filter-btn" onclick="App.toggleCategoryView('last_3', event)">Last 3mo</button>
                         </div>
                     </div>
                     <div style="font-size: 0.78rem; color: var(--text-3); text-align: center; margin-bottom: 8px;" id="categorySubtitle">Click slices to view details</div>
                     <div id="categoryChart" style="flex: 1; min-height: 340px;"></div>
                 </div>
             </div>
+
+            <!-- Suggested categories: 3 spacious feature cards + a compact "more" list -->
+            <section class="ov-section" id="discoverySection" style="display:none;">
+                <div class="ov-section-head">
+                    <h3 class="ov-section-title">Suggested categories</h3>
+                    <span class="ov-section-sub" id="discoverySub"></span>
+                </div>
+                <div id="discoveryBody"></div>
+            </section>
+
+            <!-- Ways to save: horizontal recommendation cards -->
+            <section class="ov-section" id="recommendationsSection" style="display:none;">
+                <div class="ov-section-head">
+                    <h3 class="ov-section-title">Ways to save</h3>
+                    <span class="ov-section-sub" id="recommendationsSub"></span>
+                </div>
+                <div id="recommendationsBody"></div>
+            </section>
+
+            <!-- How you compare: small insight tiles vs national/EU averages -->
+            <section class="ov-section" id="funFactsSection" style="display:none;">
+                <div class="ov-section-head">
+                    <h3 class="ov-section-title">How you compare</h3>
+                    <span class="ov-section-sub">vs. national &amp; EU averages</span>
+                </div>
+                <div class="ov-tiles" id="funFacts"></div>
+            </section>
 
             <div class="transactions-section">
                 <div class="transactions-header">
@@ -668,29 +233,66 @@
 
         <!-- Monthly View -->
         <div class="view-container" id="monthlyView">
-            <div class="monthly-grid">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title" id="currentMonthTitle">Monthly Overview</h3>
+            <!-- Month hero header -->
+            <div class="month-hero" id="monthHero">
+                <div class="month-hero-head">
+                    <div>
+                        <div class="month-hero-eyebrow">Monthly overview</div>
+                        <div class="month-hero-nav">
+                            <button class="month-nav-btn" id="monthPrevBtn" onclick="App.stepMonth(-1)" title="Previous month" aria-label="Previous month">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <h1 class="month-hero-title" id="monthHeroTitle">—</h1>
+                            <button class="month-nav-btn" id="monthNextBtn" onclick="App.stepMonth(1)" title="Next month" aria-label="Next month">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div id="currentMonthChart" style="height: 320px;"></div>
+                    <div class="month-hero-stats" id="monthHeroStats"></div>
                 </div>
-
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">Daily Spending</h3>
-                    </div>
-                    <div id="dailySpendingChart" style="height: 320px;"></div>
-                </div>
+                <div class="month-hero-highlights" id="monthHeroHighlights"></div>
             </div>
 
+            <!-- 1. Where I was — photo timeline -->
+            <div class="chart-container" id="monthMemoriesContainer" style="margin-bottom: 24px; display: none;">
+                <div class="chart-header">
+                    <h3 class="chart-title" id="monthMemoriesTitle">Where you were</h3>
+                    <div class="location-chips" id="monthLocationChips"></div>
+                </div>
+                <div class="photo-timeline" id="monthPhotoTimeline"></div>
+            </div>
+
+            <!-- 2. Spending by category -->
             <div class="chart-container" style="margin-bottom: 24px;">
                 <div class="chart-header">
-                    <h3 class="chart-title">Category Breakdown</h3>
+                    <h3 class="chart-title">Spending by category</h3>
                 </div>
                 <div id="categoryBreakdown"></div>
             </div>
 
+            <!-- 3. Charts: category split + daily rhythm -->
+            <div class="monthly-grid">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Category split</h3>
+                    </div>
+                    <div id="currentMonthChart" style="height: 340px;"></div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Daily spending</h3>
+                        <div class="chart-filters">
+                            <button class="filter-btn active" id="dailyModeAmount" onclick="App.setDailyMode('amount')">Amount</button>
+                            <button class="filter-btn" id="dailyModeStacked" onclick="App.setDailyMode('stacked')">By category</button>
+                        </div>
+                    </div>
+                    <div id="dailySpendingChart" style="height: 300px;"></div>
+                    <div id="dailyPhotoRow" class="daily-photo-row"></div>
+                </div>
+            </div>
+
+            <!-- 4. Transactions -->
             <div class="transactions-section">
                 <div class="transactions-header">
                     <h3 class="chart-title" id="monthlyTransactionsTitle">Transactions</h3>
@@ -707,21 +309,29 @@
 
         <!-- Gold View -->
         <div class="view-container" id="goldView">
-            <div class="stats-grid" id="goldStatsGrid">
-                <div class="loading"><i class="fas fa-spinner"></i><p>Loading gold data...</p></div>
+            <!-- Gold hero header -->
+            <div class="month-hero gold-hero" id="goldHero">
+                <div class="month-hero-head">
+                    <div>
+                        <div class="month-hero-eyebrow"><i class="fas fa-coins" style="margin-right:6px;"></i>Gold portfolio</div>
+                        <h1 class="month-hero-title" id="goldHeroTitle">—</h1>
+                        <div class="gold-hero-sub" id="goldHeroSub"></div>
+                    </div>
+                    <div class="month-hero-stats" id="goldHeroStats"></div>
+                </div>
             </div>
 
             <div class="chart-container" style="margin-bottom: 24px;">
                 <div class="chart-header">
-                    <h3 class="chart-title">Gold Spot Price (EUR/oz)</h3>
+                    <h3 class="chart-title">Spot price <span style="color:var(--text-3);font-weight:400;">EUR / oz</span></h3>
                     <div class="chart-filters" id="goldTimeframeFilters">
-                        <button class="filter-btn" onclick="changeGoldTimeframe('1mo', this)">1M</button>
-                        <button class="filter-btn" onclick="changeGoldTimeframe('3mo', this)">3M</button>
-                        <button class="filter-btn" onclick="changeGoldTimeframe('6mo', this)">6M</button>
-                        <button class="filter-btn" onclick="changeGoldTimeframe('1y', this)">1Y</button>
-                        <button class="filter-btn active" onclick="changeGoldTimeframe('2y', this)">2Y</button>
-                        <button class="filter-btn" onclick="changeGoldTimeframe('5y', this)">5Y</button>
-                        <button class="filter-btn" onclick="changeGoldTimeframe('max', this)">MAX</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('1mo', this)">1M</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('3mo', this)">3M</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('6mo', this)">6M</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('1y', this)">1Y</button>
+                        <button class="filter-btn active" onclick="App.changeGoldTimeframe('2y', this)">2Y</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('5y', this)">5Y</button>
+                        <button class="filter-btn" onclick="App.changeGoldTimeframe('max', this)">MAX</button>
                     </div>
                 </div>
                 <div id="goldSpotChart" style="height: 400px;"></div>
@@ -729,1001 +339,65 @@
 
             <div class="chart-container" style="margin-bottom: 24px;">
                 <div class="chart-header">
-                    <h3 class="chart-title">Bar Premiums by Weight</h3>
-                    <div style="font-size: 0.78rem; color: var(--text-3);">Source: zlataky.sk</div>
+                    <h3 class="chart-title">Bar premiums by weight</h3>
+                    <div style="font-size: 0.78rem; color: var(--text-3);">Source: zlataky.sk · shaded = historical range</div>
                 </div>
                 <div id="goldPremiumChart" style="height: 380px;"></div>
             </div>
 
-            <div class="transactions-section">
-                <div class="transactions-header">
-                    <h3 class="chart-title">Portfolio Holdings</h3>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Holdings</h3>
                 </div>
                 <div id="goldPortfolioTable"></div>
             </div>
         </div>
 
         <!-- Side Panel -->
+        <div class="side-panel-scrim" id="sidePanelScrim" onclick="App.closeSidePanel()"></div>
         <div class="side-panel" id="sidePanel">
             <div class="side-panel-header">
-                <h3 id="sidePanelTitle">Category Details</h3>
-                <button class="close-panel" onclick="closeSidePanel()">
+                <div class="side-panel-heading">
+                    <h3 id="sidePanelTitle">Details</h3>
+                    <div id="sidePanelSubtitle" class="side-panel-subtitle" style="display: none;"></div>
+                </div>
+                <button class="close-panel" onclick="App.closeSidePanel()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
+            <div id="panelCalendar" style="display: none;"></div>
+            <div id="panelPhotoStrip" style="display: none;"></div>
+            <div class="panel-filters" id="panelFilters" style="display: none;">
+                <input type="text" id="panelSearchInput" placeholder="Search merchant or category..." oninput="App.onPanelFilterChange()">
+                <div class="sort-row">
+                    <span class="sort-label">Sort by</span>
+                    <button class="sort-btn active" data-sort="amount-desc" onclick="App.setPanelSort('amount-desc')">€ High</button>
+                    <button class="sort-btn" data-sort="amount-asc" onclick="App.setPanelSort('amount-asc')">€ Low</button>
+                </div>
+            </div>
             <div class="side-panel-content" id="sidePanelContent"></div>
+            <div class="selection-bar" id="selectionBar">
+                <span class="sel-count" id="selCount">0 selected</span>
+                <span class="sel-total" id="selTotal">€0.00</span>
+                <button class="clear-sel" onclick="App.clearSelection()">Clear</button>
+            </div>
+        </div>
+
+        <!-- Photo Lightbox -->
+        <div class="photo-lightbox" id="photoLightbox" onclick="App.closePhotoLightbox()">
+            <div class="photo-lightbox-inner" onclick="event.stopPropagation()">
+                <img id="photoLightboxImg" alt="">
+                <div class="photo-lightbox-bar">
+                    <span id="photoLightboxTime"></span>
+                    <a id="photoLightboxMap" href="#" target="_blank" rel="noopener">
+                        <i class="fas fa-map-marker-alt"></i> Open in Maps
+                    </a>
+                    <button onclick="App.closePhotoLightbox()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        // ── Color Palette ──────────────────────────────
-        const CHART_COLORS = [
-            '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
-            '#06b6d4', '#f97316', '#64748b', '#ec4899', '#14b8a6',
-            '#84cc16', '#a855f7', '#fb923c', '#22d3ee', '#e11d48'
-        ];
-        const STAT_ACCENTS = ['#6366f1', '#f59e0b', '#10b981', '#64748b'];
-        const PLOTLY_FONT = { family: 'Outfit, sans-serif', color: '#57534e' };
-        const PLOTLY_GRID = '#f0eeea';
-
-        // ── State ──────────────────────────────────────
-        let currentView = 'overview';
-        let currentChartType = 'line';
-        let currentCategoryView = 'total';
-        let monthlyData = null;
-        let categoryTotals = null;
-        let categoryAverages = null;
-        let transactions = null;
-        let trends = null;
-        let currentMonthDetails = null;
-        let selectedMonth = null;
-        let sortColumn = 'date';
-        let sortDirection = 'desc';
-        let transactionsDisplayed = 50;
-        let currentFilteredTransactions = null;
-        let excludeOutliers = false;
-        let outlierData = null;
-        let goldSpotData = null;
-        let goldPremiumData = null;
-        let goldPortfolioData = null;
-        let goldLoaded = false;
-        let goldTimeframe = '2y';
-
-        // ── Data Loading ───────────────────────────────
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAllData();
-        });
-
-        function loadAllData() {
-            const qs = excludeOutliers ? '?exclude_outliers=1' : '';
-            const monthPath = selectedMonth ? '/' + selectedMonth : '';
-            const monthQs = selectedMonth ? monthPath + qs : qs;
-
-            Promise.all([
-                fetch('/api/monthly-data' + qs).then(r => r.json()),
-                fetch('/api/category-totals' + qs).then(r => r.json()),
-                fetch('/api/category-averages' + qs).then(r => r.json()),
-                fetch('/api/transactions' + qs).then(r => r.json()),
-                fetch('/api/trends' + qs).then(r => r.json()),
-                fetch('/api/current-month-details' + monthQs).then(r => r.json()),
-                fetch('/api/outliers').then(r => r.json())
-            ]).then(([monthly, totals, averages, trans, trendData, monthlyDetails, outliers]) => {
-                monthlyData = monthly;
-                categoryTotals = totals;
-                categoryAverages = averages;
-                transactions = trans;
-                trends = trendData;
-                currentMonthDetails = monthlyDetails;
-                selectedMonth = monthlyDetails.month;
-                outlierData = outliers;
-
-                renderStats();
-                renderOverviewCharts();
-                renderMonthlyDetailCharts();
-                setupMonthSelector();
-                renderTransactionsTable();
-                renderOutlierPanel();
-            }).catch(error => {
-                console.error('Error loading data:', error);
-            });
-        }
-
-        function setupMonthSelector() {
-            if (!currentMonthDetails.available_months) return;
-            const selector = document.getElementById('monthSelector');
-            selector.innerHTML = currentMonthDetails.available_months.map(month => `
-                <option value="${month}" ${month === selectedMonth ? 'selected' : ''}>
-                    ${new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </option>
-            `).join('');
-        }
-
-        function loadMonthDetails(month) {
-            const qs = excludeOutliers ? '?exclude_outliers=1' : '';
-            fetch(`/api/current-month-details/${month}${qs}`)
-                .then(r => r.json())
-                .then(data => {
-                    currentMonthDetails = data;
-                    selectedMonth = month;
-                    renderStats();
-                    renderMonthlyDetailCharts();
-                })
-                .catch(error => console.error('Error loading month details:', error));
-        }
-
-        // ── View Switching ─────────────────────────────
-        function switchView(view) {
-            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-
-            const monthSelector = document.getElementById('monthSelector');
-            monthSelector.style.display = view === 'monthly' ? 'block' : 'none';
-
-            // Hide outlier toggle on gold view (not relevant)
-            document.getElementById('outlierToggle').style.display = view === 'gold' ? 'none' : '';
-
-            document.querySelectorAll('.view-container').forEach(c => c.classList.remove('active'));
-            document.getElementById(view + 'View').classList.add('active');
-            currentView = view;
-            transactionsDisplayed = 50;
-
-            // Show/hide expense stats grid (gold has its own)
-            document.getElementById('statsGrid').style.display = view === 'gold' ? 'none' : '';
-            if (view !== 'gold') renderStats();
-
-            // Re-render charts after view becomes visible so Plotly
-            // can measure the container width correctly.
-            setTimeout(() => {
-                if (view === 'overview') {
-                    renderOverviewCharts();
-                } else if (view === 'monthly') {
-                    renderMonthlyDetailCharts();
-                } else if (view === 'gold') {
-                    if (!goldLoaded) {
-                        loadGoldData();
-                    } else {
-                        renderGoldCharts();
-                    }
-                }
-            }, 50);
-        }
-
-        function handleMonthChange() {
-            selectedMonth = document.getElementById('monthSelector').value;
-            loadMonthDetails(selectedMonth);
-        }
-
-        // ── Stats ──────────────────────────────────────
-        function renderStats() {
-            const grid = document.getElementById('statsGrid');
-
-            if (currentView === 'overview') {
-                const totalSpending = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
-                const topCategory = Object.entries(categoryTotals).reduce((a, b) => a[1] > b[1] ? a : b);
-                const avgMonthly = monthlyData.totals.reduce((a, b) => a + b, 0) / monthlyData.totals.length;
-                const recentTrend = monthlyData.totals.length > 1 ?
-                    ((monthlyData.totals[monthlyData.totals.length - 1] - monthlyData.totals[monthlyData.totals.length - 2]) / monthlyData.totals[monthlyData.totals.length - 2] * 100) : 0;
-
-                grid.innerHTML = [
-                    createStatCard('Total Spending', `€${totalSpending.toFixed(0)}`, 0),
-                    createStatCard('Avg Monthly', `€${avgMonthly.toFixed(0)}`, 1, null, recentTrend),
-                    createStatCard('Top Category', topCategory[0].replace('_', ' ').replace('-', ' '), 2, `€${topCategory[1].toFixed(0)}`),
-                    createStatCard('Months Tracked', monthlyData.months.length, 3)
-                ].join('');
-            } else {
-                if (!currentMonthDetails) return;
-                const monthTotal = Object.values(currentMonthDetails.category_totals).reduce((a, b) => a + b, 0);
-                const topMonthCat = Object.entries(currentMonthDetails.category_totals)
-                    .filter(([_, v]) => v > 0).reduce((a, b) => a[1] > b[1] ? a : b, ['other', 0]);
-                const avgDaily = monthTotal / Object.keys(currentMonthDetails.daily_spending).length;
-
-                grid.innerHTML = [
-                    createStatCard('Month Total', `€${monthTotal.toFixed(0)}`, 0),
-                    createStatCard('Avg Per Day', `€${avgDaily.toFixed(0)}`, 1),
-                    createStatCard('Top Category', topMonthCat[0].replace('_', ' ').replace('-', ' '), 2, `€${topMonthCat[1].toFixed(0)}`),
-                    createStatCard('Transactions', currentMonthDetails.total_transactions, 3)
-                ].join('');
-            }
-        }
-
-        function createStatCard(label, value, colorIdx, subValue, trend) {
-            return `
-                <div class="stat-card" style="--stat-accent: ${STAT_ACCENTS[colorIdx % STAT_ACCENTS.length]}">
-                    <div class="stat-label">${label}</div>
-                    <div class="stat-value">${value}</div>
-                    ${subValue ? `<div class="stat-sub">${subValue}</div>` : ''}
-                    ${trend !== undefined && trend !== null ? `
-                        <div class="stat-trend ${trend >= 0 ? 'trend-up' : 'trend-down'}">
-                            ${trend >= 0 ? '&#9650;' : '&#9660;'} ${Math.abs(trend).toFixed(1)}%
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        // ── Overview Charts ────────────────────────────
-        function renderOverviewCharts() {
-            renderMonthlyChart();
-            renderCategoryChart();
-        }
-
-        function renderMonthlyChart() {
-            const traces = [];
-
-            traces.push({
-                x: monthlyData.months,
-                y: monthlyData.totals,
-                type: currentChartType === 'area' ? 'scatter' : currentChartType,
-                mode: currentChartType === 'line' ? 'lines+markers' : undefined,
-                fill: currentChartType === 'area' ? 'tonexty' : undefined,
-                name: 'Total',
-                line: { color: '#1c1917', width: 2.5 },
-                marker: { size: 5, color: '#1c1917' }
-            });
-
-            const allCategories = Object.entries(monthlyData.categories)
-                .sort((a, b) => b[1].reduce((s, v) => s + v, 0) - a[1].reduce((s, v) => s + v, 0));
-
-            allCategories.forEach(([category, values], index) => {
-                traces.push({
-                    x: monthlyData.months,
-                    y: values,
-                    type: currentChartType === 'area' ? 'scatter' : currentChartType,
-                    mode: currentChartType === 'line' ? 'lines+markers' : undefined,
-                    fill: currentChartType === 'area' ? 'tonexty' : undefined,
-                    name: category.replace('_', ' ').replace('-', ' '),
-                    line: { color: CHART_COLORS[index % CHART_COLORS.length], width: 1.5 },
-                    marker: { size: 4, color: CHART_COLORS[index % CHART_COLORS.length] }
-                });
-            });
-
-            Plotly.newPlot('monthlyChart', traces, {
-                xaxis: { showgrid: false, tickfont: { size: 11 } },
-                yaxis: { title: '€', showgrid: true, gridcolor: PLOTLY_GRID, tickfont: { size: 11 }, titlefont: { size: 12 } },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: PLOTLY_FONT,
-                margin: { t: 10, r: 16, b: 50, l: 56 },
-                hovermode: 'x unified',
-                legend: { orientation: 'h', y: -0.22, x: 0.5, xanchor: 'center', font: { size: 11 } }
-            }, { responsive: true, displayModeBar: false });
-        }
-
-        function renderCategoryChart() {
-            let dataToUse, subtitleText, centerText;
-
-            if (currentCategoryView === 'total') {
-                dataToUse = categoryTotals;
-                subtitleText = 'Total across all time';
-                centerText = `€${Object.values(categoryTotals).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:12px;color:#a8a29e">Total</span>`;
-            } else if (currentCategoryView === 'average') {
-                dataToUse = categoryAverages.overall;
-                subtitleText = `Average per month (${categoryAverages.num_months} months)`;
-                centerText = `€${Object.values(categoryAverages.overall).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:12px;color:#a8a29e">Avg/mo</span>`;
-            } else {
-                dataToUse = categoryAverages.last_3_months;
-                subtitleText = `Avg of last ${categoryAverages.last_3_count} months`;
-                centerText = `€${Object.values(categoryAverages.last_3_months).reduce((a, b) => a + b, 0).toFixed(0)}<br><span style="font-size:12px;color:#a8a29e">Avg/mo</span>`;
-            }
-
-            document.getElementById('categorySubtitle').textContent = subtitleText;
-
-            const sorted = Object.entries(dataToUse).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-
-            Plotly.newPlot('categoryChart', [{
-                labels: sorted.map(([c]) => c.replace('_', ' ').replace('-', ' ')),
-                values: sorted.map(([_, v]) => v),
-                type: 'pie',
-                hole: 0.55,
-                marker: {
-                    colors: CHART_COLORS.slice(0, sorted.length),
-                    line: { color: '#ffffff', width: 2 }
-                },
-                textinfo: 'label+percent',
-                textposition: 'outside',
-                textfont: { size: 11, color: '#57534e' },
-                hovertemplate: '<b>%{label}</b><br>€%{value:.2f}<br>%{percent}<extra></extra>',
-            }], {
-                font: PLOTLY_FONT,
-                margin: { t: 8, r: 8, b: 8, l: 8 },
-                showlegend: false,
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                annotations: [{ text: centerText, x: 0.5, y: 0.5, font: { size: 18, family: 'Newsreader, serif', color: '#1c1917' }, showarrow: false }]
-            }, { responsive: true, displayModeBar: false });
-
-            document.getElementById('categoryChart').on('plotly_click', function(data) {
-                const category = sorted[data.points[0].pointNumber][0];
-                showCategoryDetails(category);
-            });
-        }
-
-        function toggleCategoryView(view) {
-            currentCategoryView = view;
-            const buttons = document.querySelectorAll('.chart-container .chart-filters .filter-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            renderCategoryChart();
-        }
-
-        // ── Monthly Detail Charts ──────────────────────
-        function renderMonthlyDetailCharts() {
-            if (!currentMonthDetails || !currentMonthDetails.month) return;
-
-            const monthLabel = new Date(currentMonthDetails.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            document.getElementById('currentMonthTitle').textContent = monthLabel;
-            document.getElementById('monthlyTransactionsTitle').textContent = `${monthLabel} Transactions`;
-
-            // Pie chart
-            const cats = Object.entries(currentMonthDetails.category_totals).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-            if (cats.length > 0) {
-                Plotly.newPlot('currentMonthChart', [{
-                    labels: cats.map(([c]) => c.replace('_', ' ').replace('-', ' ')),
-                    values: cats.map(([_, v]) => v),
-                    type: 'pie',
-                    hole: 0.45,
-                    marker: { colors: CHART_COLORS.slice(0, cats.length), line: { color: '#fff', width: 2 } },
-                    textinfo: 'percent',
-                    textposition: 'inside',
-                    insidetextorientation: 'horizontal',
-                    textfont: { size: 10, color: '#fff' },
-                    hovertemplate: '<b>%{label}</b><br>€%{value:.2f}<br>%{percent}<extra></extra>'
-                }], {
-                    margin: { t: 10, r: 10, b: 10, l: 10 },
-                    showlegend: false,
-                    plot_bgcolor: 'white', paper_bgcolor: 'white',
-                    font: PLOTLY_FONT
-                }, { responsive: true, displayModeBar: false });
-
-                document.getElementById('currentMonthChart').on('plotly_click', function(data) {
-                    showCategoryDetails(cats[data.points[0].pointNumber][0]);
-                });
-            }
-
-            // Daily bar chart
-            const daily = Object.entries(currentMonthDetails.daily_spending).sort((a, b) => a[0].localeCompare(b[0]));
-            if (daily.length > 0) {
-                const dayLabels = daily.map(([d]) => {
-                    const day = parseInt(d.split('-')[2], 10);
-                    return day.toString();
-                });
-
-                Plotly.newPlot('dailySpendingChart', [{
-                    x: dayLabels,
-                    y: daily.map(([_, a]) => a),
-                    type: 'bar',
-                    marker: {
-                        color: daily.map(([_, a]) => a),
-                        colorscale: [[0, '#dbeafe'], [1, '#3b82f6']],
-                        showscale: false
-                    },
-                    hovertext: daily.map(([d, a]) => `<b>${d}</b><br>€${a.toFixed(2)}`),
-                    hoverinfo: 'text'
-                }], {
-                    margin: { t: 8, r: 8, b: 28, l: 32 },
-                    xaxis: { tickfont: { size: 8 }, type: 'category', tickangle: 0 },
-                    yaxis: { tickfont: { size: 8 }, gridcolor: PLOTLY_GRID, tickformat: ',.0f' },
-                    plot_bgcolor: 'white', paper_bgcolor: 'white',
-                    font: PLOTLY_FONT,
-                    bargap: 0.15,
-                    autosize: true
-                }, { responsive: true, displayModeBar: false });
-            }
-
-            renderCategoryBreakdown();
-            renderMonthlyTransactionsTable();
-        }
-
-        function renderCategoryBreakdown() {
-            if (!currentMonthDetails) return;
-            const container = document.getElementById('categoryBreakdown');
-            const data = Object.entries(currentMonthDetails.category_totals).filter(([_, a]) => a > 0).sort((a, b) => b[1] - a[1]);
-            const total = data.reduce((s, [_, a]) => s + a, 0);
-
-            container.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px;">
-                    ${data.map(([cat, amount], i) => {
-                        const pct = ((amount / total) * 100).toFixed(1);
-                        const txCount = currentMonthDetails.category_transactions[cat]?.length || 0;
-                        const color = CHART_COLORS[i % CHART_COLORS.length];
-                        return `
-                            <div onclick="showCategoryDetails('${cat}')" style="
-                                padding: 14px 16px;
-                                border: 1px solid var(--border);
-                                border-left: 3px solid ${color};
-                                border-radius: 8px;
-                                cursor: pointer;
-                                transition: background 0.12s ease;
-                            " onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
-                                <div style="font-weight: 600; font-size: 0.85rem; text-transform: capitalize; margin-bottom: 4px;">
-                                    ${cat.replace('_', ' ').replace('-', ' ')}
-                                </div>
-                                <div style="font-family: 'Newsreader', serif; font-size: 1.35rem; color: var(--text); margin-bottom: 4px;">
-                                    €${amount.toFixed(2)}
-                                </div>
-                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-3);">
-                                    <span>${pct}%</span>
-                                    <span>${txCount} txns</span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                <div style="text-align: center; padding: 12px; border-top: 1px solid var(--border-light); font-size: 0.85rem; color: var(--text-2);">
-                    Monthly Total: <strong style="font-family: 'Newsreader', serif; font-size: 1.05rem;">€${total.toFixed(2)}</strong>
-                </div>
-            `;
-        }
-
-        // ── Category Side Panel ────────────────────────
-        let currentCategoryData = null;
-
-        function showCategoryDetails(category) {
-            const qs = excludeOutliers ? '?exclude_outliers=1' : '';
-            let apiEndpoint;
-            if (currentView === 'monthly') {
-                apiEndpoint = selectedMonth
-                    ? `/api/current-month-category-transactions/${category}/${selectedMonth}${qs}`
-                    : `/api/current-month-category-transactions/${category}${qs}`;
-            } else {
-                apiEndpoint = `/api/category-transactions/${category}${qs}`;
-            }
-
-            fetch(apiEndpoint)
-                .then(r => r.json())
-                .then(data => {
-                    currentCategoryData = data;
-                    renderCategoryPanel();
-                })
-                .catch(error => console.error('Error loading category details:', error));
-        }
-
-        function renderCategoryPanel() {
-            if (!currentCategoryData) return;
-            const panel = document.getElementById('sidePanel');
-            const title = document.getElementById('sidePanelTitle');
-            const content = document.getElementById('sidePanelContent');
-
-            title.textContent = currentCategoryData.category.replace('_', ' ').replace('-', ' ');
-
-            content.innerHTML = `
-                <div class="category-summary">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 0.82rem; color: var(--text-2);">Total</span>
-                        <span style="font-family: 'Newsreader', serif; font-size: 1.1rem; font-weight: 500;">€${currentCategoryData.total_amount.toFixed(2)}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-size: 0.82rem; color: var(--text-2);">Transactions</span>
-                        <span style="font-size: 0.88rem; font-weight: 500;">${currentCategoryData.transaction_count}</span>
-                    </div>
-                </div>
-                <div style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 12px;">
-                    All Transactions (${currentCategoryData.transactions.length})
-                </div>
-                ${currentCategoryData.transactions.map(tx => `
-                    <div class="transaction-item">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <div>
-                                <div style="font-weight: 500; font-size: 0.88rem; margin-bottom: 2px;">${tx.merchant}</div>
-                                <div style="font-size: 0.78rem; color: var(--text-3);">${new Date(tx.date).toLocaleDateString()}</div>
-                            </div>
-                            <div style="font-family: 'Newsreader', serif; font-weight: 400; color: var(--red); font-size: 0.95rem;">€${tx.amount.toFixed(2)}</div>
-                        </div>
-                    </div>
-                `).join('')}
-            `;
-
-            panel.classList.add('open');
-        }
-
-        // ── Outliers ───────────────────────────────────
-        function toggleOutliers() {
-            excludeOutliers = !excludeOutliers;
-            const btn = document.getElementById('outlierToggle');
-            const text = document.getElementById('outlierToggleText');
-
-            if (excludeOutliers) {
-                btn.classList.add('active');
-                text.textContent = 'Routine Only';
-            } else {
-                btn.classList.remove('active');
-                text.textContent = 'Hide Outliers';
-            }
-
-            transactionsDisplayed = 50;
-            loadAllData();
-        }
-
-        function renderOutlierPanel() {
-            const panel = document.getElementById('outlierPanel');
-            if (!outlierData || outlierData.count === 0 || !excludeOutliers) {
-                panel.classList.remove('visible');
-                return;
-            }
-
-            panel.classList.add('visible');
-
-            document.getElementById('outlierSummary').innerHTML = `
-                <span><strong>${outlierData.count}</strong> items</span>
-                <span>&euro;<strong>${outlierData.total_amount.toFixed(0)}</strong> total</span>
-                <span style="font-size: 0.75rem; color: var(--text-3);"><i class="fas fa-chevron-down"></i></span>
-            `;
-
-            document.getElementById('outlierList').innerHTML = outlierData.outliers.map(tx => `
-                <div class="outlier-item">
-                    <div class="outlier-item-left">
-                        <span class="outlier-merchant">${tx.merchant}</span>
-                        <span class="outlier-meta">${new Date(tx.date).toLocaleDateString()} &middot; ${tx.category.replace('_', ' ')}</span>
-                    </div>
-                    <span class="outlier-amount">&euro;${tx.amount.toFixed(2)}</span>
-                </div>
-            `).join('');
-        }
-
-        function closeSidePanel() {
-            document.getElementById('sidePanel').classList.remove('open');
-        }
-
-        // ── Transactions Table ─────────────────────────
-        function sortTransactions(data, column, direction) {
-            if (!data || !Array.isArray(data)) return [];
-            return [...data].sort((a, b) => {
-                let vA, vB;
-                switch (column) {
-                    case 'date': vA = new Date(a.date); vB = new Date(b.date); break;
-                    case 'amount': vA = a.amount; vB = b.amount; break;
-                    case 'merchant': vA = a.merchant.toLowerCase(); vB = b.merchant.toLowerCase(); break;
-                    case 'category': vA = a.category.toLowerCase(); vB = b.category.toLowerCase(); break;
-                    default: return 0;
-                }
-                if (vA < vB) return direction === 'asc' ? -1 : 1;
-                if (vA > vB) return direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-
-        function handleSort(column) {
-            if (sortColumn === column) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = 'desc';
-            }
-            transactionsDisplayed = 50;
-            renderTransactionsTable();
-            if (currentView === 'monthly') renderMonthlyTransactionsTable();
-        }
-
-        function renderTransactionsTable(filteredTransactions = null) {
-            if (!transactions || !Array.isArray(transactions)) {
-                document.getElementById('transactionsTable').innerHTML = '<div class="loading"><i class="fas fa-spinner"></i><p>Loading...</p></div>';
-                return;
-            }
-
-            try {
-                const baseData = filteredTransactions || transactions;
-                const sortedData = sortTransactions(baseData, sortColumn, sortDirection);
-                currentFilteredTransactions = sortedData;
-
-                if (!sortedData || sortedData.length === 0) {
-                    document.getElementById('transactionsTable').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-3);">No transactions</div>';
-                    return;
-                }
-
-                const showing = sortedData.slice(0, transactionsDisplayed);
-                const hasMore = sortedData.length > transactionsDisplayed;
-                const arrow = (col) => sortColumn === col ? (sortDirection === 'asc' ? '&#9650;' : '&#9660;') : '';
-
-                document.getElementById('transactionsTable').innerHTML = `
-                    <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:10px;">
-                        ${showing.length} of ${sortedData.length} transactions
-                    </div>
-                    <table class="transaction-table">
-                        <thead><tr>
-                            <th onclick="handleSort('date')">Date <span class="sort-arrow">${arrow('date')}</span></th>
-                            <th onclick="handleSort('merchant')">Merchant <span class="sort-arrow">${arrow('merchant')}</span></th>
-                            <th onclick="handleSort('category')">Category <span class="sort-arrow">${arrow('category')}</span></th>
-                            <th onclick="handleSort('amount')" style="text-align:right;">Amount <span class="sort-arrow">${arrow('amount')}</span></th>
-                        </tr></thead>
-                        <tbody>
-                            ${showing.map(tx => `
-                                <tr>
-                                    <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
-                                    <td style="font-weight:500;">${tx.merchant}</td>
-                                    <td><span class="category-badge ${tx.category.replace(' ', '-').replace('_', '-')}"
-                                        onclick="event.stopPropagation();showCategoryDetails('${tx.category}')">${tx.category.replace('_', ' ')}</span></td>
-                                    <td style="text-align:right;font-family:'Newsreader',serif;color:var(--red);font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    ${hasMore ? `
-                        <div style="text-align:center;padding:16px;">
-                            <button onclick="loadMoreTransactions()" style="
-                                padding:8px 20px;border:1px solid var(--border);border-radius:6px;
-                                background:transparent;color:var(--text-2);cursor:pointer;
-                                font-weight:500;font-size:0.82rem;font-family:'Outfit',sans-serif;
-                                transition:all 0.12s ease;
-                            " onmouseover="this.style.background='var(--text)';this.style.color='white';this.style.borderColor='var(--text)'"
-                               onmouseout="this.style.background='transparent';this.style.color='var(--text-2)';this.style.borderColor='var(--border)'">
-                                Load more
-                            </button>
-                        </div>
-                    ` : ''}
-                `;
-            } catch (error) {
-                console.error('Error rendering transactions:', error);
-                document.getElementById('transactionsTable').innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">Error loading transactions</div>';
-            }
-        }
-
-        function loadMoreTransactions() {
-            transactionsDisplayed += 50;
-            if (currentFilteredTransactions) {
-                renderTransactionsTable(currentFilteredTransactions === transactions ? null : currentFilteredTransactions);
-            } else {
-                renderTransactionsTable();
-            }
-        }
-
-        function toggleChart(type) {
-            currentChartType = type;
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            renderMonthlyChart();
-        }
-
-        function renderMonthlyTransactionsTable(filteredTransactions = null) {
-            if (!currentMonthDetails) return;
-
-            let monthlyTxs = Object.values(currentMonthDetails.category_transactions).flat();
-            let showing = filteredTransactions || monthlyTxs;
-            showing = sortTransactions(showing, sortColumn, sortDirection);
-
-            const arrow = (col) => sortColumn === col ? (sortDirection === 'asc' ? '&#9650;' : '&#9660;') : '';
-
-            document.getElementById('monthlyTransactionsTable').innerHTML = `
-                <table class="transaction-table">
-                    <thead><tr>
-                        <th onclick="handleSort('date')">Date <span class="sort-arrow">${arrow('date')}</span></th>
-                        <th onclick="handleSort('merchant')">Merchant <span class="sort-arrow">${arrow('merchant')}</span></th>
-                        <th onclick="handleSort('category')">Category <span class="sort-arrow">${arrow('category')}</span></th>
-                        <th onclick="handleSort('amount')" style="text-align:right;">Amount <span class="sort-arrow">${arrow('amount')}</span></th>
-                    </tr></thead>
-                    <tbody>
-                        ${showing.map(tx => `
-                            <tr>
-                                <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
-                                <td style="font-weight:500;">${tx.merchant}</td>
-                                <td><span class="category-badge ${tx.category.replace(' ', '-').replace('_', '-')}"
-                                    onclick="showCategoryDetails('${tx.category}')">${tx.category.replace('_', ' ')}</span></td>
-                                <td style="text-align:right;font-family:'Newsreader',serif;color:var(--red);font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div style="text-align:center;padding:14px;font-size:0.78rem;color:var(--text-3);">
-                    ${showing.length} transactions &middot; ${new Date(currentMonthDetails.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </div>
-            `;
-        }
-
-        // ── Gold ───────────────────────────────────────
-        function loadGoldData() {
-            const fetches = [
-                fetch(`/api/gold/spot-history?period=${goldTimeframe}`).then(r => r.json()),
-            ];
-            // Only fetch premiums and portfolio on first load (they don't depend on timeframe)
-            if (!goldLoaded) {
-                fetches.push(fetch('/api/gold/premiums').then(r => r.json()));
-                fetches.push(fetch('/api/gold/portfolio').then(r => r.json()));
-            }
-
-            Promise.all(fetches).then(results => {
-                goldSpotData = results[0];
-                if (results.length > 1) {
-                    goldPremiumData = results[1];
-                    goldPortfolioData = results[2];
-                }
-                goldLoaded = true;
-                renderGoldCharts();
-            }).catch(err => {
-                console.error('Error loading gold data:', err);
-                document.getElementById('goldStatsGrid').innerHTML =
-                    '<div style="text-align:center;padding:40px;color:var(--red);grid-column:1/-1;">Failed to load gold data. Is yfinance working?</div>';
-            });
-        }
-
-        function changeGoldTimeframe(tf, btn) {
-            goldTimeframe = tf;
-            document.querySelectorAll('#goldTimeframeFilters .filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            loadGoldData();
-        }
-
-        function renderGoldCharts() {
-            renderGoldStats();
-            renderGoldSpotChart();
-            renderGoldPremiumChart();
-            renderGoldPortfolioTable();
-        }
-
-        function renderGoldStats() {
-            if (!goldPortfolioData) return;
-            const p = goldPortfolioData;
-            const glColor = p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
-            const glSign = p.gain_loss >= 0 ? '+' : '';
-
-            document.getElementById('goldStatsGrid').innerHTML = `
-                <div class="stat-card" style="--stat-accent: #D4AF37">
-                    <div class="stat-label">Portfolio Value</div>
-                    <div class="stat-value">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
-                    <div class="stat-sub">${p.total_weight_g}g total</div>
-                </div>
-                <div class="stat-card" style="--stat-accent: #D4AF37">
-                    <div class="stat-label">Total Cost</div>
-                    <div class="stat-value">€${p.total_cost.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
-                    <div class="stat-sub">${p.items.length} purchases</div>
-                </div>
-                <div class="stat-card" style="--stat-accent: ${p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'}">
-                    <div class="stat-label">Gain / Loss</div>
-                    <div class="stat-value" style="color: ${glColor}">${glSign}€${Math.abs(p.gain_loss).toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
-                    <div class="stat-trend ${p.gain_loss >= 0 ? 'trend-down' : 'trend-up'}">${glSign}${p.gain_loss_pct}%</div>
-                </div>
-                <div class="stat-card" style="--stat-accent: #D4AF37">
-                    <div class="stat-label">Spot Price</div>
-                    <div class="stat-value">€${p.current_spot_per_oz.toLocaleString('en', {minimumFractionDigits: 0, maximumFractionDigits: 0})}/oz</div>
-                    <div class="stat-sub">€${p.current_spot_per_g.toFixed(2)}/g</div>
-                </div>
-            `;
-        }
-
-        function renderGoldSpotChart() {
-            if (!goldSpotData || !goldSpotData.dates) return;
-
-            const traces = [];
-
-            // Spot price line
-            traces.push({
-                x: goldSpotData.dates,
-                y: goldSpotData.prices_eur_oz,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Gold Spot (EUR/oz)',
-                line: { color: '#D4AF37', width: 2.5 },
-                hovertemplate: '<b>%{x}</b><br>€%{y:,.2f}/oz<extra></extra>',
-                fill: 'tozeroy',
-                fillcolor: 'rgba(212, 175, 55, 0.08)',
-            });
-
-            // Purchase markers
-            if (goldPortfolioData && goldPortfolioData.items) {
-                const buyDates = [];
-                const buyPrices = [];
-                const buyTexts = [];
-                const spotDates = [];
-                const spotPrices = [];
-
-                goldPortfolioData.items.forEach(item => {
-                    buyDates.push(item.date);
-                    buyPrices.push(item.cost_per_oz);
-                    const prem = item.premium_pct !== null ? `Premium: ${item.premium_pct}%` : '';
-                    buyTexts.push(`<b>${item.label}</b><br>${item.date}<br>Paid: €${item.cost.toLocaleString()}<br>€${item.cost_per_oz.toLocaleString()}/oz<br>${prem}<extra></extra>`);
-
-                    if (item.spot_at_purchase_oz) {
-                        spotDates.push(item.date);
-                        spotPrices.push(item.spot_at_purchase_oz);
-                    }
-                });
-
-                traces.push({
-                    x: buyDates,
-                    y: buyPrices,
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: 'Purchases (price paid)',
-                    marker: { symbol: 'triangle-up', size: 14, color: '#ef4444', line: { width: 1, color: '#991b1b' } },
-                    hovertemplate: buyTexts,
-                });
-
-                if (spotDates.length) {
-                    traces.push({
-                        x: spotDates,
-                        y: spotPrices,
-                        type: 'scatter',
-                        mode: 'markers',
-                        name: 'Spot at purchase',
-                        marker: { symbol: 'circle', size: 8, color: '#D4AF37', line: { width: 1, color: '#1c1917' } },
-                        hovertemplate: '<b>Spot at purchase</b><br>%{x}<br>€%{y:,.2f}/oz<extra></extra>',
-                    });
-                }
-            }
-
-            const shapes = (goldPortfolioData?.items || []).map(item => ({
-                type: 'line',
-                x0: item.date, x1: item.date,
-                y0: 0, y1: 1, yref: 'paper',
-                line: { color: 'rgba(239, 68, 68, 0.4)', width: 1.5, dash: 'dash' },
-            }));
-
-            Plotly.newPlot('goldSpotChart', traces, {
-                xaxis: { showgrid: false, tickfont: { size: 11 } },
-                yaxis: { title: 'EUR/oz', gridcolor: PLOTLY_GRID, tickfont: { size: 11 }, tickformat: ',.0f' },
-                plot_bgcolor: 'white', paper_bgcolor: 'white',
-                font: PLOTLY_FONT,
-                margin: { t: 10, r: 16, b: 50, l: 64 },
-                hovermode: 'x unified',
-                legend: { orientation: 'h', y: -0.18, x: 0.5, xanchor: 'center', font: { size: 11 } },
-                shapes: shapes,
-            }, { responsive: true, displayModeBar: false });
-        }
-
-        function renderGoldPremiumChart() {
-            if (!goldPremiumData || !goldPremiumData.rows) return;
-
-            const weights = goldPremiumData.weights;
-            const traces = [];
-
-            // Historical rows as faded lines
-            goldPremiumData.rows.forEach((row, i) => {
-                traces.push({
-                    x: weights,
-                    y: row,
-                    type: 'scatter',
-                    mode: 'lines',
-                    line: { width: 1 },
-                    opacity: 0.1,
-                    connectgaps: true,
-                    showlegend: false,
-                    hoverinfo: 'skip',
-                });
-            });
-
-            // Average line
-            traces.push({
-                x: weights,
-                y: goldPremiumData.averages,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: 'Average',
-                line: { color: '#ef4444', width: 2.5 },
-                marker: { size: 6 },
-                connectgaps: true,
-                hovertemplate: '<b>%{x}g</b><br>Avg premium: %{y:.1f}%<extra></extra>',
-            });
-
-            // Latest line
-            traces.push({
-                x: weights,
-                y: goldPremiumData.latest,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: `Latest (${goldPremiumData.latest_date})`,
-                line: { color: '#2563eb', width: 2.5 },
-                marker: { size: 6 },
-                connectgaps: true,
-                hovertemplate: '<b>%{x}g</b><br>Current premium: %{y:.1f}%<extra></extra>',
-            });
-
-            // Highlight lowest 3 current premiums
-            const validLatest = goldPremiumData.latest
-                .map((v, i) => v !== null ? { v, w: weights[i] } : null)
-                .filter(Boolean)
-                .sort((a, b) => a.v - b.v)
-                .slice(0, 3);
-
-            traces.push({
-                x: validLatest.map(d => d.w),
-                y: validLatest.map(d => d.v),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'Best deals',
-                marker: { color: '#D4AF37', size: 12, line: { width: 1.5, color: '#92711c' } },
-                hovertemplate: '<b>%{x}g</b><br>Premium: %{y:.1f}% ★<extra></extra>',
-            });
-
-            Plotly.newPlot('goldPremiumChart', traces, {
-                xaxis: {
-                    title: 'Bar Weight (g)',
-                    type: 'log',
-                    tickvals: weights,
-                    ticktext: goldPremiumData.weight_labels,
-                    tickfont: { size: 11 },
-                },
-                yaxis: { title: 'Premium (%)', gridcolor: PLOTLY_GRID, tickfont: { size: 11 }, dtick: 2.5 },
-                plot_bgcolor: 'white', paper_bgcolor: 'white',
-                font: PLOTLY_FONT,
-                margin: { t: 10, r: 16, b: 50, l: 56 },
-                legend: { orientation: 'h', y: -0.22, x: 0.5, xanchor: 'center', font: { size: 11 } },
-            }, { responsive: true, displayModeBar: false });
-        }
-
-        function renderGoldPortfolioTable() {
-            if (!goldPortfolioData || !goldPortfolioData.items) return;
-            const container = document.getElementById('goldPortfolioTable');
-            const p = goldPortfolioData;
-
-            container.innerHTML = `
-                <div class="gold-holding gold-holding-header">
-                    <div>Holding</div>
-                    <div style="text-align:right;">Cost</div>
-                    <div style="text-align:right;">Value Now</div>
-                    <div style="text-align:right;">Premium</div>
-                    <div style="text-align:right;">P&L</div>
-                </div>
-                ${p.items.map(item => {
-                    const glColor = item.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
-                    const glSign = item.gain_loss >= 0 ? '+' : '';
-                    return `
-                        <div class="gold-holding">
-                            <div>
-                                <div style="font-weight:500;">${item.label}</div>
-                                <div style="font-size:0.78rem;color:var(--text-3);">${new Date(item.date).toLocaleDateString()} &middot; ${item.weight_g}g</div>
-                            </div>
-                            <div style="text-align:right;font-family:'Newsreader',serif;">€${item.cost.toLocaleString()}</div>
-                            <div style="text-align:right;font-family:'Newsreader',serif;">€${item.value_now.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                            <div style="text-align:right;font-size:0.82rem;color:var(--text-2);">${item.premium_pct !== null ? item.premium_pct + '%' : '—'}</div>
-                            <div style="text-align:right;font-family:'Newsreader',serif;color:${glColor};font-weight:500;">
-                                ${glSign}€${Math.abs(item.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:400;">${glSign}${item.gain_loss_pct}%</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-                <div class="gold-holding gold-total">
-                    <div>
-                        <div style="font-weight:600;">Total</div>
-                        <div style="font-size:0.78rem;color:var(--text-3);">${p.total_weight_g}g</div>
-                    </div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;">€${p.total_cost.toLocaleString()}</div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;">€${p.current_value.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                    <div></div>
-                    <div style="text-align:right;font-family:'Newsreader',serif;color:${p.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600;">
-                        ${p.gain_loss >= 0 ? '+' : ''}€${Math.abs(p.gain_loss).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        <div style="font-size:0.75rem;font-family:'Outfit',sans-serif;font-weight:500;">${p.gain_loss >= 0 ? '+' : ''}${p.gain_loss_pct}%</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // ── Search ─────────────────────────────────────
-        document.getElementById('searchBox').addEventListener('input', function(e) {
-            const term = e.target.value.toLowerCase();
-            transactionsDisplayed = 50;
-            if (!term) { renderTransactionsTable(); return; }
-            renderTransactionsTable(transactions.filter(tx =>
-                tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term)
-            ));
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                const box = document.getElementById('monthlySearchBox');
-                if (box) {
-                    box.addEventListener('input', function(e) {
-                        if (!currentMonthDetails) return;
-                        const term = e.target.value.toLowerCase();
-                        const all = Object.values(currentMonthDetails.category_transactions).flat();
-                        if (!term) { renderMonthlyTransactionsTable(); return; }
-                        renderMonthlyTransactionsTable(all.filter(tx =>
-                            tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term)
-                        ));
-                    });
-                }
-            }, 500);
-        });
-
-        // ── Panel Close Handlers ───────────────────────
-        document.addEventListener('click', function(e) {
-            const panel = document.getElementById('sidePanel');
-            if (panel.classList.contains('open') && !panel.contains(e.target) && !e.target.closest('[data-category-click]')) {
-                closeSidePanel();
-            }
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeSidePanel();
-        });
-    </script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

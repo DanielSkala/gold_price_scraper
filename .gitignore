@@ -72,8 +72,12 @@ openinsider/data/*.db-wal
 openinsider/data/*.log
 openinsider/.claude/
 
-# Personal financial data (sensitive)
-expenses/expense_reports/*.csv
+# Personal financial data (sensitive) — the whole reports tree, incl. analyses.
+# Bundled synthetic demo data lives in expenses/sample_reports/ (committed) instead.
+expenses/expense_reports/
+expenses/data/category_overrides.json
+expenses/data/settings.json
+expenses/data/gold_purchases.json
 
 # Flask stuff:
 instance/

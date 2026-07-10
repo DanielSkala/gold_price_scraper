@@ -1,0 +1,21 @@
+# Python dependencies for the Expense Analytics dashboard (this subproject only).
+# Install with:  pip install -r requirements.txt
+#
+# Plotly and Font Awesome are loaded from a CDN in the browser, so they are NOT
+# listed here. Werkzeug is pulled in automatically by Flask.
+
+# Core web app (required)
+Flask>=2.0
+Flask-Cors>=3.0
+
+# CSV parsing / tables (required)
+tabulate>=0.9
+
+# Gold tab — live spot prices + premium math (optional feature; needs network).
+# pandas is only used by the gold service; the rest of the app runs without it.
+pandas>=1.3
+yfinance>=0.2
+
+# macOS Photos "memories" feature (optional, macOS-only). Used for near-duplicate
+# photo detection; if absent, photos still load and the app is fully usable.
+Pillow>=9.0
