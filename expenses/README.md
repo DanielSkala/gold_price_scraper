@@ -82,18 +82,6 @@ The **monthly deep-dive** breaks a single month down by category and day, and cl
   <img src="docs/screenshots/monthly-sidebar.png" alt="Monthly view with the day side panel open — transactions and photo memories" width="880">
 </p>
 
-Everything works in **dark mode** too:
-
-<p align="center">
-  <img src="docs/screenshots/overview-dark.png" alt="Overview dashboard in dark mode" width="880">
-</p>
-
-And there's an optional **Gold** tab — live spot price, bar premiums, and a portfolio tracker:
-
-<p align="center">
-  <img src="docs/screenshots/gold.png" alt="Gold tab — spot price history and portfolio" width="880">
-</p>
-
 ---
 
 ## Three questions everyone asks
