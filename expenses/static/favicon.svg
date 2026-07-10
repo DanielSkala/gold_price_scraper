@@ -1,12 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Expenses">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#e6c34d"/>
-      <stop offset="1" stop-color="#c9a227"/>
+    <!-- Subtle top-lit sheen for a soft liquid-glass feel. -->
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c2c2e"/>
+      <stop offset="1" stop-color="#161617"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#1c1917"/>
-  <circle cx="32" cy="32" r="19" fill="url(#g)"/>
-  <text x="32" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="30" font-weight="700" fill="#1c1917">€</text>
+
+  <!-- Rounded-square tile (Apple squircle-ish) with a bright top edge. -->
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#tile)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none"
+        stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
+
+  <!-- Minimalist ascending trend line — simple clean strokes. -->
+  <polyline points="15,42 27,33 37,38 49,20"
+            fill="none" stroke="#ffffff" stroke-width="3.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- End node, echoing the app's chart markers. -->
+  <circle cx="49" cy="20" r="4" fill="#ffffff"/>
 </svg>
