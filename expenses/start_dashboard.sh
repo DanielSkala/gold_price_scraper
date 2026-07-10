@@ -7,18 +7,21 @@ echo ""
 
 cd "$(dirname "$0")"
 
-# Prefer python3, fall back to python.
-if command -v python3 >/dev/null 2>&1; then
-    PY=python3
-elif command -v python >/dev/null 2>&1; then
-    PY=python
-else
-    echo "❌ Error: Python 3 not found. Install it from https://www.python.org/downloads/"
+if [ ! -f "app.py" ]; then
+    echo "❌ Error: app.py not found (run this from the expenses/ directory)."
     exit 1
 fi
 
-if [ ! -f "app.py" ]; then
-    echo "❌ Error: app.py not found (run this from the expenses/ directory)."
+# Prefer uv (installs deps + runs in one step). Fall back to python3/python.
+if command -v uv >/dev/null 2>&1; then
+    RUN=(uv run app.py)
+elif command -v python3 >/dev/null 2>&1; then
+    RUN=(python3 app.py)
+elif command -v python >/dev/null 2>&1; then
+    RUN=(python app.py)
+else
+    echo "❌ Error: neither uv nor Python 3 found."
+    echo "   Install uv (https://docs.astral.sh/uv/) or Python (https://www.python.org/downloads/)."
     exit 1
 fi
 
@@ -29,10 +32,10 @@ if [ ! -d "expense_reports" ] || [ -z "$(ls -A expense_reports/*.csv 2>/dev/null
     echo ""
 fi
 
-echo "✅ Starting Flask server..."
+echo "✅ Starting Flask server (${RUN[0]})..."
 echo "📊 Dashboard will be available at: http://localhost:5001"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
 
-"$PY" app.py
+"${RUN[@]}"

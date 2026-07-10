@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/onboarding.png" alt="Expenses — welcome screen" width="640">
+  <img src="docs/screenshots/overview-real.png" alt="Expenses — overview dashboard with photo memories, trends, and category donut" width="880">
 </p>
 
 <h1 align="center">Expenses</h1>
@@ -29,27 +29,29 @@ You export a year of card transactions. It's a wall of rows — `LIDL 042`, `SHE
 
 No setup ceremony. Clone it, point it at a CSV (or click **"Explore with sample data"**), and open your browser.
 
-<p align="center">
-  <img src="docs/screenshots/overview-light.png" alt="Overview dashboard — spending at a glance, trends, and category donut" width="880">
-</p>
-
 ---
 
 ## Quick start
 
-From inside the `expenses/` directory:
+The easiest way is [**uv**](https://docs.astral.sh/uv/) — one command installs Python, the deps, and runs the app, from inside the `expenses/` directory:
 
 ```bash
-# 1. Create an isolated environment
+uv run app.py
+```
+
+That's it. `uv` reads `pyproject.toml`, creates an isolated environment, installs everything, and starts the server. (Don't have uv? `curl -LsSf https://astral.sh/uv/install.sh | sh` — or on Windows `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`.)
+
+<details>
+<summary>Prefer classic pip + venv?</summary>
+
+```bash
 python3 -m venv .venv        # Windows: py -m venv .venv
 source .venv/bin/activate    # Windows: .venv\Scripts\Activate.ps1
-
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Run it
-./start_dashboard.sh         # Windows: start_dashboard.bat  ·  any OS: python app.py
+python app.py
 ```
+
+</details>
 
 Then open **<http://localhost:5001>**.
 
@@ -74,12 +76,23 @@ The first time you open it with no data, hit **Explore with sample data** to try
   <img src="docs/screenshots/insights.png" alt="Suggested categories, ways to save, and how-you-compare sections" width="880">
 </p>
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/monthly.png" alt="Monthly deep-dive view" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/overview-dark.png" alt="Dark mode overview" width="100%"></td>
-  </tr>
-</table>
+The **monthly deep-dive** breaks a single month down by category and day, and clicking any day (or a photo) opens a side panel with that day's transactions and pictures:
+
+<p align="center">
+  <img src="docs/screenshots/monthly-sidebar.png" alt="Monthly view with the day side panel open — transactions and photo memories" width="880">
+</p>
+
+Everything works in **dark mode** too:
+
+<p align="center">
+  <img src="docs/screenshots/overview-dark.png" alt="Overview dashboard in dark mode" width="880">
+</p>
+
+And there's an optional **Gold** tab — live spot price, bar premiums, and a portfolio tracker:
+
+<p align="center">
+  <img src="docs/screenshots/gold.png" alt="Gold tab — spot price history and portfolio" width="880">
+</p>
 
 ---
 
@@ -132,8 +145,8 @@ Everything is deterministic and local — the savings recommendations and catego
 expenses/
 ├── app.py                   # Flask app factory (port 5001)
 ├── credit_card_expenses.py  # CSV parser + auto-categoriser
-├── requirements.txt         # Python deps for this app
-├── start_dashboard.sh/.bat  # Run scripts (macOS·Linux / Windows)
+├── pyproject.toml           # Python deps (uv / PEP 621) — requirements.txt also provided
+├── start_dashboard.sh/.bat  # Run scripts (prefer uv, fall back to python)
 ├── blueprints/              # HTTP routes: expenses, gold, photos
 ├── services/                # Domain logic: aggregation, insights, photos, gold
 ├── static/                  # Vanilla-JS + CSS frontend (no build step)
