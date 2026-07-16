@@ -364,14 +364,19 @@ def _clean_name(raw):
 
 
 def _analyse_category_budgets(avg_cat, budgets):
-    """Flag categories whose recent (3-month avg) spend runs over a user-set budget.
+    """For categories running over a user-set budget, recommend a concrete way to
+    close the gap — NOT just "you're over budget" (the user already knows that).
 
-    Uses the same timeframe as the other analysers (avg over the recent window) so
-    it's a stable "you consistently exceed this budget" signal, complementary to the
-    live in-month pacing shown on the monthly cards."""
+    Uses the recent (3-month avg) window, matching the other analysers. Leads with the
+    highest-impact actionable tip for the category (from the knowledge base); the budget
+    overrun is only context for WHY we're suggesting it and sizes the target saving."""
     recs = []
     for cat, limit in (budgets or {}).items():
         if not limit or limit <= 0:
+            continue
+        # 'other' is a grab-bag, not a single actionable lever — no useful lifestyle
+        # advice applies. (The "Tidy up Other" flow handles that bucket instead.)
+        if cat == 'other':
             continue
         spent = avg_cat.get(cat, 0.0)
         if spent <= 0 or spent <= limit:
@@ -381,15 +386,18 @@ def _analyse_category_budgets(avg_cat, budgets):
             continue
         label = _pretty(cat)
         pct = over / limit * 100
+        tip, tip_saving = _best_tip(cat, spent)
+        # Target the reachable slice of the overrun, but at least what the tip can realistically save.
+        saving = max(over, tip_saving * 0.6)
         recs.append(_rec(
             f"budget_{cat.replace(' ', '_')}",
-            f"You're over budget on {label}",
-            f"{label.capitalize()} averages ~€{spent:.0f}/mo — about €{over:.0f} over your "
-            f"€{limit:.0f} budget ({pct:.0f}% above). Trimming it back to plan frees €{over:.0f}/mo.",
-            over,
+            tip["title"],   # the ACTION is the headline, not "you're over budget"
+            f"{tip['action']} Your {label} runs ~€{spent:.0f}/mo — about €{over:.0f} over the "
+            f"€{limit:.0f} budget you set, so this is where to focus.",
+            saving,
             cat, "budget",
             severity="alert" if pct >= 40 else "watch",
-            assumption="Compared to the monthly budget you set for this category.",
+            assumption=f"Est. ~{round(tip['save_frac']*100)}% of spend · {tip['source']}. Vs the budget you set for {label}.",
         ))
     return recs
 

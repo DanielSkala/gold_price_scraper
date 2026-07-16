@@ -493,8 +493,15 @@ export function renderCategoryBreakdown() {
                     ? `€${amount.toFixed(2)} <span class="cat-bud-limit">/ €${Math.round(bud.limit)}</span>`
                     : `€${amount.toFixed(2)}`;
                 const budgetBlock = bud ? budgetBlockHtml(bud, budgets.is_current) : '';
+                // The 'other' bucket gets a "Tidy up" action right here — this is where a
+                // user looking at their bloated Other category expects to act on it.
+                const tidyBtn = (cat === 'other')
+                    ? `<button class="cat-tidy-btn" onclick="event.stopPropagation(); App.startTidy()">
+                           <i class="fas fa-wand-magic-sparkles"></i> Tidy up — sort these into categories
+                       </button>`
+                    : '';
                 return `
-                    <div class="cat-breakdown-card" data-cat="${escAttr(cat)}" onclick="App.showCategoryDetails('${safe}')"
+                    <div class="cat-breakdown-card${cat === 'other' ? ' cat-card-other' : ''}" data-cat="${escAttr(cat)}" onclick="App.showCategoryDetails('${safe}')"
                         style="border-left-color:${color};">
                         ${actions}
                         <div style="font-weight: 600; font-size: 0.85rem; text-transform: capitalize; margin-bottom: 4px; display:flex; align-items:center; gap:7px;">
@@ -509,6 +516,7 @@ export function renderCategoryBreakdown() {
                             <span>${txCount} txns</span>
                         </div>
                         <div class="cat-bud-area">${budgetBlock}</div>
+                        ${tidyBtn}
                     </div>
                 `;
             }).join('')}

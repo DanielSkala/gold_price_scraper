@@ -105,15 +105,6 @@ function renderCard() {
     const it = queue[idx];
     if (!it) { renderSummary(); return; }
 
-    const photos = it.photos || [];
-    const photoHtml = photos.length
-        ? `<div class="tidy-photos">${photos.map(p => `
-              <div class="tidy-photo" title="${esc(fmtDate(p.date))}">
-                  <img src="/photo/${p.uuid}" loading="lazy" alt="">
-                  <span class="tidy-photo-date">${esc(new Date(p.date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}</span>
-              </div>`).join('')}</div>`
-        : `<div class="tidy-photos tidy-photos-empty"><i class="fas fa-receipt"></i><span>No photos from these days</span></div>`;
-
     const span = it.first_date === it.last_date
         ? fmtDate(it.first_date)
         : `${fmtDate(it.first_date)} → ${fmtDate(it.last_date)}`;
@@ -124,19 +115,37 @@ function renderCard() {
             ${esc(cat.replace(/_/g, ' ').replace(/-/g, ' '))}
         </button>`).join('');
 
+    const photos = it.photos || [];
+    // Photos are OPT-IN: they show the day's whole camera roll, which is often unrelated
+    // to the purchase, so we hide them behind a toggle rather than leading with them.
+    const photoToggle = photos.length
+        ? `<button class="tidy-photo-toggle" id="tidyPhotoToggle">
+               <i class="fas fa-camera"></i> View photos from these days
+           </button>
+           <div class="tidy-photos" id="tidyPhotos" hidden>${photos.map(p => `
+              <div class="tidy-photo" title="${esc(fmtDate(p.date))}">
+                  <img src="/photo/${p.uuid}" loading="lazy" alt="">
+                  <span class="tidy-photo-date">${esc(new Date(p.date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}</span>
+              </div>`).join('')}
+              <div class="tidy-photos-note">Your camera roll from these days — may not show the actual purchase.</div>
+           </div>`
+        : '';
+
     body.innerHTML = `
         <div class="tidy-card">
-            ${photoHtml}
-            <div class="tidy-card-main">
-                <div class="tidy-merchant" title="${esc(it.display)}">${esc(it.display)}</div>
-                <div class="tidy-stats">
-                    <span class="tidy-stat"><b>${it.count}</b> ${it.count === 1 ? 'purchase' : 'purchases'}</span>
-                    <span class="tidy-stat"><b>${euro(it.total)}</b> total</span>
-                    <span class="tidy-stat">avg ${euro2(it.avg)}</span>
+            <div class="tidy-hero">
+                <span class="tidy-hero-icon"><i class="fas fa-receipt"></i></span>
+                <div class="tidy-hero-text">
+                    <div class="tidy-eyebrow">Which category fits?</div>
+                    <div class="tidy-merchant" title="${esc(it.display)}">${esc(it.display)}</div>
                 </div>
-                <div class="tidy-dates"><i class="fas fa-calendar"></i> ${span}</div>
             </div>
-            <div class="tidy-prompt">Where does this belong?</div>
+            <div class="tidy-stats">
+                <span class="tidy-stat"><b>${it.count}</b> ${it.count === 1 ? 'purchase' : 'purchases'}</span>
+                <span class="tidy-stat"><b>${euro(it.total)}</b> total</span>
+                <span class="tidy-stat">avg ${euro2(it.avg)}</span>
+                <span class="tidy-stat"><i class="fas fa-calendar"></i> ${span}</span>
+            </div>
             <div class="tidy-chips">
                 ${chips}
                 <button class="tidy-chip tidy-chip-new" data-cat="__add__">
@@ -144,6 +153,7 @@ function renderCard() {
                     New category…
                 </button>
             </div>
+            ${photoToggle}
             <div class="tidy-actions">
                 <button class="tidy-skip" id="tidySkipBtn"><i class="fas fa-forward"></i> Skip for now</button>
             </div>
@@ -161,6 +171,20 @@ function renderCard() {
         });
     });
     body.querySelector('#tidySkipBtn').addEventListener('click', skipCurrent);
+    const photoBtn = body.querySelector('#tidyPhotoToggle');
+    if (photoBtn) {
+        photoBtn.addEventListener('click', () => {
+            const strip = body.querySelector('#tidyPhotos');
+            const showing = !strip.hasAttribute('hidden');
+            if (showing) {
+                strip.setAttribute('hidden', '');
+                photoBtn.innerHTML = `<i class="fas fa-camera"></i> View photos from these days`;
+            } else {
+                strip.removeAttribute('hidden');
+                photoBtn.innerHTML = `<i class="fas fa-eye-slash"></i> Hide photos`;
+            }
+        });
+    }
 }
 
 // Move the current merchant's transactions into `category` (persist + learn a rule),

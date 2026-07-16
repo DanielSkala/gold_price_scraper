@@ -1102,20 +1102,21 @@
         .add-category-tile i { font-size: 1rem; }
 
         /* ── Tidy up "Other" ─────────────────────────── */
-        /* Launch button in the Suggested-categories header. */
-        .tidy-launch {
-            margin-left: auto;
-            display: inline-flex; align-items: center; gap: 7px;
+        /* "Tidy up" action on the Other category card in the Monthly breakdown —
+           right where the user sees the bloated bucket. */
+        .cat-card-other { border-left-color: var(--text-3) !important; }
+        .cat-tidy-btn {
+            width: 100%; margin-top: 10px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 7px;
             border: none; cursor: pointer;
             background: var(--primary); color: #fff;
-            font-family: var(--font-sans); font-size: 0.82rem; font-weight: 600;
-            padding: 7px 14px; border-radius: var(--radius-pill);
-            box-shadow: var(--shadow);
+            font-family: var(--font-sans); font-size: 0.78rem; font-weight: 600;
+            padding: 8px 12px; border-radius: var(--radius-sm);
             transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
         }
-        .tidy-launch:hover { background: var(--primary-hover); transform: translateY(-1px); }
-        .tidy-launch:active { transform: scale(0.97); }
-        .tidy-launch i { font-size: 0.8rem; }
+        .cat-tidy-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .cat-tidy-btn:active { transform: scale(0.98); }
+        .cat-tidy-btn i { font-size: 0.78rem; }
 
         /* Overlay + modal. */
         .tidy-overlay {
@@ -1169,11 +1170,44 @@
         /* The merchant card. */
         .tidy-card { animation: newcat-pop var(--dur) var(--ease-out); }
         .tidy-card-leaving { opacity: 0; transform: translateX(28px) scale(0.98); transition: opacity 0.18s ease, transform 0.18s ease; }
-        .tidy-photos {
-            display: flex; gap: 8px; margin-bottom: 16px;
-            border-radius: var(--radius); overflow: hidden;
+
+        /* Hero: the merchant NAME leads the card, big and unmissable. */
+        .tidy-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+        .tidy-hero-icon {
+            flex: 0 0 auto; width: 52px; height: 52px; border-radius: var(--radius);
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--primary-bg); color: var(--primary); font-size: 1.3rem;
         }
-        .tidy-photo { position: relative; flex: 1; height: 120px; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg); }
+        .tidy-hero-text { min-width: 0; }
+        .tidy-eyebrow {
+            font-size: 0.72rem; font-weight: 600; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;
+        }
+        .tidy-merchant {
+            font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text);
+            line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .tidy-stats {
+            display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 18px;
+            padding-bottom: 16px; border-bottom: 1px solid var(--hairline);
+        }
+        .tidy-stat { font-size: 0.86rem; color: var(--text-2); }
+        .tidy-stat b { font-family: var(--font-serif); font-weight: 500; color: var(--text); font-size: 1rem; }
+        .tidy-stat i { margin-right: 4px; color: var(--text-3); font-size: 0.78rem; }
+
+        /* Photos are opt-in behind this toggle. */
+        .tidy-photo-toggle {
+            margin-top: 14px; border: none; background: none; cursor: pointer;
+            color: var(--text-3); font-family: var(--font-sans); font-size: 0.8rem; font-weight: 600;
+            padding: 4px 0; display: inline-flex; align-items: center; gap: 6px;
+            transition: color var(--dur-fast) ease;
+        }
+        .tidy-photo-toggle:hover { color: var(--primary); }
+        .tidy-photos {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+        }
+        .tidy-photos[hidden] { display: none; }
+        .tidy-photo { position: relative; flex: 1; min-width: 90px; height: 110px; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg); }
         .tidy-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .tidy-photo-date {
             position: absolute; left: 6px; bottom: 6px;
@@ -1181,23 +1215,7 @@
             background: rgba(0,0,0,0.5); padding: 2px 7px; border-radius: 999px;
             -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
         }
-        .tidy-photos-empty {
-            height: 92px; align-items: center; justify-content: center;
-            flex-direction: column; gap: 7px;
-            background: var(--bg); color: var(--text-3);
-            border: 1px dashed var(--border); font-size: 0.8rem;
-        }
-        .tidy-photos-empty i { font-size: 1.3rem; }
-        .tidy-merchant {
-            font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text);
-            margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .tidy-stats { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 6px; }
-        .tidy-stat { font-size: 0.86rem; color: var(--text-2); }
-        .tidy-stat b { font-family: var(--font-serif); font-weight: 500; color: var(--text); font-size: 1rem; }
-        .tidy-dates { font-size: 0.78rem; color: var(--text-3); }
-        .tidy-dates i { margin-right: 4px; }
-        .tidy-prompt { margin: 18px 0 10px; font-size: 0.88rem; font-weight: 600; color: var(--text); }
+        .tidy-photos-note { flex-basis: 100%; font-size: 0.72rem; color: var(--text-3); font-style: italic; margin-top: 2px; }
         .tidy-chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .tidy-chip {
             display: inline-flex; align-items: center; gap: 7px;
