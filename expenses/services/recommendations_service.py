@@ -61,11 +61,12 @@ def _rec(id, title, detail, saving, category, kind, severity="tip", assumption=N
     return r
 
 
-def _analyse_eating_out(avg_cat, txs_recent):
+def _analyse_eating_out(avg_cat, txs_recent, n_months=3):
     recs = []
     spent = avg_cat.get("eating out", 0.0)
     if spent <= 0:
         return recs
+    n_months = max(n_months, 1)
 
     meal_out = _fact_value("restaurant_meal_cheap", 8.0)
     meal_home = _fact_value("home_cooked_meal", 2.5)
@@ -91,13 +92,13 @@ def _analyse_eating_out(avg_cat, txs_recent):
                   and any(w in t["merchant"].lower() for w in coffee_words)]
     if coffee_txs:
         # per-month count over the analysed window
-        cups = len(coffee_txs)
+        cups = len(coffee_txs) / n_months
         saving_c = cups * (cafe - home)
         if saving_c >= 3:
             recs.append(_rec(
                 "coffee_home",
                 "Brew coffee at home",
-                f"~{cups} cafe coffees showed up recently. Making them at home could save "
+                f"~{cups:.0f} cafe coffees a month showed up recently. Making them at home could save "
                 f"about €{saving_c:.0f}/mo — a home machine (~€120) pays for itself in a few months.",
                 saving_c, "eating out", "swap",
                 assumption=f"Cafe cappuccino ~€{cafe:.2f} vs ~€{home:.2f} at home.",
@@ -109,12 +110,12 @@ def _analyse_eating_out(avg_cat, txs_recent):
     del_txs = [t for t in txs_recent
                if any(w in t["merchant"].lower() for w in delivery_words)]
     if del_txs:
-        orders = len(del_txs)
+        orders = len(del_txs) / n_months
         saving_d = orders * fee
         recs.append(_rec(
             "delivery_pickup",
             "Skip delivery, pick up instead",
-            f"~{orders} likely delivery orders recently. Picking up instead could save "
+            f"~{orders:.0f} likely delivery orders a month recently. Picking up instead could save "
             f"about €{saving_d:.0f}/mo in fees and markups.",
             saving_d, "eating out", "swap",
             assumption=f"Delivery adds ~€{fee:.1f} per order.",
@@ -453,7 +454,7 @@ def build_recommendations(analysis_input):
 
     recs = []
     # Category-specific swaps (nice extras where we have domain knowledge).
-    recs += _analyse_eating_out(avg_cat, recent_txs)
+    recs += _analyse_eating_out(avg_cat, recent_txs, n_months=len(months) or 3)
     recs += _analyse_groceries(avg_cat)
     recs += _analyse_transport(avg_cat, recent_txs)
     recs += _analyse_vs_benchmarks(avg_cat)

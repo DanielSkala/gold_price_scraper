@@ -341,15 +341,21 @@ def create_category_from_suggestion():
 
     entry = categories_service.add(name, color, icon)
     # Point each selected merchant's rule at the new category so all its txns move.
-    for m in merchants:
-        if m:
-            overrides_service.set_merchant_rule(m, name)
+    # A selected merchant can be one branch of a brand (e.g. 'LIDL 164'); learn a rule
+    # for EVERY distinct raw spelling that shares its brand so the whole group moves.
+    all_expenses = get_expenses_data()
+    norms = {overrides_service.normalize_merchant(m) for m in merchants if m}
+    raw_merchants = {
+        tx['merchant'] for tx in all_expenses
+        if overrides_service.normalize_merchant(tx['merchant']) in norms
+    }
+    for m in raw_merchants:
+        overrides_service.set_merchant_rule(m, name)
 
     # Count how many transactions now fall under the new category.
-    mkeys = {overrides_service.merchant_key(m) for m in merchants if m}
     affected = sum(
-        1 for tx in get_expenses_data()
-        if overrides_service.merchant_key(tx['merchant']) in mkeys
+        1 for tx in all_expenses
+        if overrides_service.normalize_merchant(tx['merchant']) in norms
     )
     return jsonify({'ok': True, 'category': entry, 'affected': affected})
 
@@ -488,6 +494,8 @@ def mosaic_photos():
 
 @bp.route('/api/category-transactions/<category>')
 def category_transactions(category):
+    if not categories_service.is_known(category):
+        return jsonify({'error': 'unknown category'}), 404
     all_expenses = get_expenses(exclude_outliers=_should_exclude_outliers())
 
     # Filter transactions by category
@@ -516,6 +524,8 @@ def category_transactions(category):
 @bp.route('/api/current-month-category-transactions/<category>')
 @bp.route('/api/current-month-category-transactions/<category>/<month>')
 def current_month_category_transactions(category, month=None):
+    if not categories_service.is_known(category):
+        return jsonify({'error': 'unknown category'}), 404
     monthly_sums, all_expenses = get_monthly_data(exclude_outliers=_should_exclude_outliers())
 
     if not monthly_sums:
@@ -627,6 +637,8 @@ def tidy_other():
     Each item is enriched with a few sample photos from days it was purchased.
     Query: ?order=importance|count|total (default importance), ?limit=N."""
     order = request.args.get('order', 'importance')
+    if order not in {'importance', 'count', 'total'}:
+        return jsonify({'error': f'invalid order: {order}'}), 400
     try:
         limit = max(1, min(int(request.args.get('limit', '40') or 40), 100))
     except ValueError:

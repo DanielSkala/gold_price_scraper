@@ -17,7 +17,10 @@ def photos_for_day_route(date):
     if not _DATE_RE.match(date):
         abort(400)
     photos = photos_lib.photos_for_day(date)
-    curated_target = int(request.args.get('curated', '0') or 0)
+    try:
+        curated_target = int(request.args.get('curated', '0') or 0)
+    except (ValueError, TypeError):
+        curated_target = 0
     payload = {
         "date": date,
         "photos": photos,
@@ -33,7 +36,10 @@ def photos_for_month_route(month):
     if not _MONTH_RE.match(month):
         abort(400)
     photos = photos_lib.photos_for_month(month)
-    curated_target = int(request.args.get('target', '9'))
+    try:
+        curated_target = int(request.args.get('target', '9'))
+    except (ValueError, TypeError):
+        curated_target = 9
     return jsonify({
         "month": month,
         "total_photos": len(photos),
@@ -46,7 +52,10 @@ def photos_for_month_route(month):
 def photos_timeline_route(month):
     if not _MONTH_RE.match(month):
         abort(400)
-    per_day = int(request.args.get('per_day', '4'))
+    try:
+        per_day = int(request.args.get('per_day', '4'))
+    except (ValueError, TypeError):
+        per_day = 4
     days = photos_lib.photos_by_day(month, per_day=per_day)
     total = sum(d["total"] for d in days)
     # Top locations reflect ALL photos in the month, not just the curated subset.
@@ -67,4 +76,7 @@ def photo_thumb(uuid):
     path = photos_lib.thumbnail_path(uuid, size=size)
     if path is None:
         abort(404)
-    return send_file(str(path), mimetype='image/jpeg', max_age=3600)
+    try:
+        return send_file(str(path), mimetype='image/jpeg', max_age=3600)
+    except (FileNotFoundError, PermissionError, IOError):
+        abort(404)

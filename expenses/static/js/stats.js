@@ -16,7 +16,7 @@ export function renderStats() {
     const monthTotal = Object.values(state.currentMonthDetails.category_totals).reduce((a, b) => a + b, 0);
     const topMonthCat = Object.entries(state.currentMonthDetails.category_totals)
         .filter(([_, v]) => v > 0).reduce((a, b) => a[1] > b[1] ? a : b, ['other', 0]);
-    const avgDaily = monthTotal / Object.keys(state.currentMonthDetails.daily_spending).length;
+    const avgDaily = monthTotal / (Object.keys(state.currentMonthDetails.daily_spending || {}).length || 1);
 
     grid.innerHTML = [
         createStatCard('Month Total', `€${monthTotal.toFixed(0)}`, 0),

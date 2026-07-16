@@ -7,12 +7,12 @@ const GOLD_SOFT = 'rgba(212, 175, 55, 0.12)';
 // ── Gold ───────────────────────────────────────
 export function loadGoldData() {
     const fetches = [
-        fetch(`/api/gold/spot-history?period=${state.goldTimeframe}`).then(r => r.json()),
+        fetch(`/api/gold/spot-history?period=${state.goldTimeframe}`).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))),
     ];
     // Only fetch premiums and portfolio on first load (they don't depend on timeframe)
     if (!state.goldLoaded) {
-        fetches.push(fetch('/api/gold/premiums').then(r => r.json()));
-        fetches.push(fetch('/api/gold/portfolio').then(r => r.json()));
+        fetches.push(fetch('/api/gold/premiums').then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))));
+        fetches.push(fetch('/api/gold/portfolio').then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))));
     }
 
     Promise.all(fetches).then(results => {

@@ -7,7 +7,10 @@ import { getCategoryColor } from './constants.js';
 // Panel holds an unfiltered list of transactions plus filter/selection state.
 
 export function txKey(tx) {
-    return `${tx.date}|${tx.merchant}|${tx.amount}|${tx.category}`;
+    // Escape pipes in name/category so distinct transactions can't collide into the
+    // same key (e.g. merchant "a" + category "b" vs merchant "a|b" + category "c").
+    const esc = (s) => String(s).replace(/\|/g, '\\|');
+    return `${tx.date}|${esc(tx.merchant)}|${tx.amount}|${esc(tx.category)}`;
 }
 
 export function openPanel({ title, subtitle = null, transactions, showDate = true, dateForPhotos = null, category = null, calendarCtx = undefined, selectedDay = null, dayGroupCategory = null, dayGroupKeys = null, backCategory = null }) {
@@ -222,9 +225,12 @@ export function renderPanelBody() {
 
     // "Back to category" link when we've drilled from a category calendar into a day.
     const backHtml = panelState.backCategory
-        ? `<div class="panel-back" onclick="event.stopPropagation(); App.showCategoryDetails('${panelState.backCategory}')">
+        ? (() => {
+              const safeCat = panelState.backCategory.replace(/'/g, "\\'");
+              return `<div class="panel-back" onclick="event.stopPropagation(); App.showCategoryDetails('${safeCat}')">
                <i class="fas fa-chevron-left"></i> Back to ${panelState.backCategory.replace('_', ' ').replace('-', ' ')}
-           </div>`
+           </div>`;
+          })()
         : '';
 
     const summaryHtml = `

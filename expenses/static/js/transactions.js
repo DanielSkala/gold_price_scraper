@@ -3,6 +3,9 @@ import { renderMonthlyChart } from './charts_overview.js';
 import { showCategoryDetails } from './panel.js';
 import { categoryBadgeHtml } from './overrides.js';
 
+// HTML-escape for safe embedding in table cells (defense-in-depth for merchant data).
+const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+
 // ── Transactions Table ─────────────────────────
 export function sortTransactions(data, column, direction) {
     if (!data || !Array.isArray(data)) return [];
@@ -68,7 +71,7 @@ export function renderTransactionsTable(filteredTransactions = null) {
                     ${showing.map(tx => `
                         <tr>
                             <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
-                            <td style="font-weight:500;">${tx.merchant}</td>
+                            <td style="font-weight:500;">${escapeHtml(tx.merchant)}</td>
                             <td>${categoryBadgeHtml(tx)}</td>
                             <td style="text-align:right;font-family:var(--font-serif);color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
                         </tr>
@@ -114,7 +117,7 @@ export function toggleChart(type, evt) {
 export function renderMonthlyTransactionsTable(filteredTransactions = null) {
     if (!state.currentMonthDetails) return;
 
-    let monthlyTxs = Object.values(state.currentMonthDetails.category_transactions).flat();
+    let monthlyTxs = Object.values(state.currentMonthDetails.category_transactions || {}).flat();
     let showing = filteredTransactions || monthlyTxs;
     showing = sortTransactions(showing, state.sortColumn, state.sortDirection);
 
@@ -132,7 +135,7 @@ export function renderMonthlyTransactionsTable(filteredTransactions = null) {
                 ${showing.map(tx => `
                     <tr>
                         <td style="color:var(--text-2);font-size:0.82rem;">${new Date(tx.date).toLocaleDateString()}</td>
-                        <td style="font-weight:500;">${tx.merchant}</td>
+                        <td style="font-weight:500;">${escapeHtml(tx.merchant)}</td>
                         <td>${categoryBadgeHtml(tx)}</td>
                         <td style="text-align:right;font-family:var(--font-serif);color:${amountColor(tx)};font-size:0.9rem;">€${tx.amount.toFixed(2)}</td>
                     </tr>

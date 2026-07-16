@@ -95,7 +95,8 @@ def _build_seed():
     return {"order": order, "categories": categories}
 
 
-def _load():
+def _load_locked():
+    """Populate and return `_cache`. Callers MUST hold `_lock`."""
     global _cache
     if _cache is not None:
         return _cache
@@ -119,12 +120,31 @@ def _load():
     return _cache
 
 
+def _load():
+    # Double-checked locking: fast path avoids the lock once initialized; the
+    # initial load + `_cache` assignment happen under `_lock` so a concurrent
+    # write can't be shadowed by a stale disk read.
+    if _cache is not None:
+        return _cache
+    with _lock:
+        return _load_locked()
+
+
 def _save():
     os.makedirs(os.path.dirname(CATEGORIES_FILE), exist_ok=True)
     tmp = CATEGORIES_FILE + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(_cache, f, indent=2, ensure_ascii=False)
     os.replace(tmp, CATEGORIES_FILE)
+
+
+def _find_locked(name):
+    """Like `_find`, but assumes `_lock` is held (safe to call from writers)."""
+    target = _norm(name)
+    for real in _load_locked()['categories']:
+        if _norm(real) == target:
+            return real
+    return None
 
 
 def _find(name):
@@ -190,8 +210,8 @@ def categorize(merchant):
 def add(name, color, icon, keywords=None):
     """Create a category (idempotent by name). Returns the stored entry."""
     with _lock:
-        data = _load()
-        real = _find(name)
+        data = _load_locked()
+        real = _find_locked(name)
         entry = {
             "color": color or _DEFAULT_STYLE["color"],
             "icon": icon or _DEFAULT_STYLE["icon"],
@@ -215,8 +235,8 @@ def update(old_name, new_name, color, icon, keywords=None):
     bool) or (None, False) if `old_name` doesn't exist. The `other` bucket can be
     restyled/re-keyed but not renamed."""
     with _lock:
-        data = _load()
-        real = _find(old_name)
+        data = _load_locked()
+        real = _find_locked(old_name)
         if real is None:
             return None, False
         cur = data['categories'][real]
@@ -241,8 +261,8 @@ def delete(name):
     bucket cannot be deleted. (Moving its transactions to `other` is the caller's
     job — see overrides_service repointing.)"""
     with _lock:
-        data = _load()
-        real = _find(name)
+        data = _load_locked()
+        real = _find_locked(name)
         if real is None or real == FALLBACK_CATEGORY:
             return None
         data['categories'].pop(real, None)

@@ -117,7 +117,7 @@ function initGoal() {
     if (!goal) return;
     const save = () => {
         const v = Math.max(0, Math.round(parseFloat(goal.value) || 0));
-        if (!v || v === state.budgetGoal) return;
+        if (v === state.budgetGoal) return;
         state.budgetGoal = v;
         fetch('/api/settings/budget-goal', {
             method: 'POST',

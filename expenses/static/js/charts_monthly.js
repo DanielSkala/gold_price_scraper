@@ -19,6 +19,7 @@ export function renderMonthlyDetailCharts() {
     const cats = Object.entries(state.currentMonthDetails.category_totals).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     if (cats.length > 0) {
         const monthPieTotal = cats.reduce((s, [, v]) => s + v, 0);
+        Plotly.purge(document.getElementById('currentMonthChart'));
         Plotly.newPlot('currentMonthChart', [{
             labels: cats.map(([c]) => c.replace('_', ' ').replace('-', ' ')),
             values: cats.map(([_, v]) => v),

@@ -18,7 +18,7 @@ CATEGORIES = {
         "terno",
         "stary otec",
         "ah",
-        "albert hein"
+        "albert hein",
         "jumbo",
         "spar",
         "tesco",

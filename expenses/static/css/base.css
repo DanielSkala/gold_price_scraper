@@ -64,6 +64,7 @@
             --dur-fast: 140ms;
             --dur-mid: 300ms;
             --dur-slow: 420ms;
+            --dur: var(--dur-mid);   /* standard transition duration */
 
             /* Plotly-facing tokens (read by JS at render time). */
             --chart-bg: #ffffff;

@@ -55,7 +55,7 @@ export function loadAllData() {
         state.transactions = trans;
         state.trends = trendData;
         state.currentMonthDetails = monthlyDetails;
-        state.selectedMonth = monthlyDetails.month;
+        if (!state.selectedMonth) { state.selectedMonth = monthlyDetails.month; }
         state.outlierData = outliers;
 
         renderStats();

@@ -251,15 +251,6 @@ def curate(photos, target=8, similarity_threshold=10):
     return selected
 
 
-def summary_for_range(photos, curated_target=8):
-    """Bundle top locations + curated selection + counts for a photo set."""
-    return {
-        "total_photos": len(photos),
-        "top_locations": top_locations(photos, limit=3),
-        "curated": curate(photos, target=curated_target),
-    }
-
-
 def photos_by_day(month_str, per_day=4):
     """Group a month's photos by day for a timeline view.
 

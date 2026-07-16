@@ -163,7 +163,7 @@ export function renderMonthMemories(monthStr, monthLabel, dailySpending = {}) {
 let panelPhotoData = { photos: [], curated: [], top_locations: [], expanded: false };
 
 export function photoTileHtml(p) {
-    const timeStr = p.taken_at.split(' ')[1].slice(0, 5);
+    const timeStr = p.taken_at?.split(' ')[1]?.slice(0, 5) || '';
     const geo = (p.lat != null && p.lng != null)
         ? `https://www.google.com/maps?q=${p.lat},${p.lng}`
         : null;
@@ -230,7 +230,7 @@ export function renderPhotoStrip(date) {
     host.innerHTML = `<div class="photo-strip-loading">Loading photos…</div>`;
 
     fetch(`/api/photos-for-day/${date}?curated=9`)
-        .then(r => r.json())
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
         .then(data => {
             const photos = data.photos || [];
             if (photos.length === 0) {

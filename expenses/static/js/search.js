@@ -21,7 +21,7 @@ if (monthlySearchBox) {
     monthlySearchBox.addEventListener('input', function(e) {
         if (!state.currentMonthDetails) return;
         const term = e.target.value.toLowerCase();
-        const all = Object.values(state.currentMonthDetails.category_transactions).flat();
+        const all = Object.values(state.currentMonthDetails.category_transactions || {}).flat();
         if (!term) { renderMonthlyTransactionsTable(); return; }
         renderMonthlyTransactionsTable(all.filter(tx =>
             tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term)

@@ -43,7 +43,7 @@ export function openCategoryPicker(tx, anchorEl) {
         ${categoryList().map(cat => {
             const isCurrent = cat.toLowerCase() === String(tx.category).toLowerCase();
             return `
-                <button class="cat-picker-item${isCurrent ? ' current' : ''}" data-cat="${cat}" ${isCurrent ? 'disabled' : ''}>
+                <button class="cat-picker-item${isCurrent ? ' current' : ''}" data-cat="${esc(cat)}" ${isCurrent ? 'disabled' : ''}>
                     <span class="cat-dot" style="background:${getCategoryColor(cat)}"><i class="fas ${getCategoryIcon(cat)}"></i></span>
                     <span class="cat-name">${cat}</span>
                     ${isCurrent ? '<span class="cat-check">current</span>' : ''}
