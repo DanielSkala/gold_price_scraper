@@ -2,20 +2,15 @@
 // Clicking a transaction's category badge opens a picker of all categories.
 // Selecting one reclassifies that transaction (persisted server-side), then the
 // whole dashboard reloads so the item moves out of its old category everywhere.
-import { CATEGORY_COLORS, CUSTOM_CATEGORIES, customCategoryNames, getCategoryColor, getCategoryBg, getCategoryIcon } from './constants.js';
+import { allCategoryNames, getCategoryColor, getCategoryBg, getCategoryIcon } from './constants.js';
 import { loadAllData } from './loading.js';
 import { applyOverrideToPanel, refreshPanelBody } from './panel.js';
 import { openNewCategoryDialog } from './categories.js';
 
-// Built-in categories (display form). Custom categories are appended at runtime.
-const BUILTIN_CATEGORIES = [
-    'groceries', 'eating out', 'bolt', 'car wash', 'gas stations',
-    'parking', 'nabytok', 'oil partner', 'other',
-];
-// Full list including any user-added custom categories (with their real casing).
+// Every category, live from the catalog (built-in + user-created), with 'other' last.
 function categoryList() {
-    const extra = customCategoryNames();
-    return [...BUILTIN_CATEGORIES, ...extra.filter(c => !BUILTIN_CATEGORIES.includes(c))];
+    const names = allCategoryNames();
+    return [...names.filter(c => c.toLowerCase() !== 'other'), 'other'];
 }
 
 let activePopover = null;

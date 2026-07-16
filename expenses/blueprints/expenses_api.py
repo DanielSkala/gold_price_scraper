@@ -4,12 +4,13 @@ from collections import defaultdict
 
 from flask import Blueprint, jsonify, request
 
-from credit_card_expenses import CATEGORIES, CATEGORY_ORDER
 from services import (
+    categories_service,
     discovery_service,
     overrides_service,
     photos_lib,
     recommendations_service,
+    recurring_service,
     reports_service,
     settings_service,
 )
@@ -28,12 +29,8 @@ def _should_exclude_outliers():
 
 
 def _category_order():
-    """Built-in category order plus any custom categories (so their spend shows
-    up in the overview aggregations, not just the monthly detail view)."""
-    customs = [c['name'] for c in overrides_service.get_custom_categories()]
-    # keep 'other' last: insert customs before it
-    order = [c for c in CATEGORY_ORDER if c != 'other'] + customs + ['other']
-    return order
+    """Live category order from the unified catalog (fallback bucket last)."""
+    return categories_service.get_order()
 
 
 @bp.route('/api/monthly-data')
@@ -157,16 +154,17 @@ def trends():
 
 @bp.route('/api/categories')
 def categories():
+    """The full category catalog — every category with its color, icon, keywords,
+    and whether it's built-in. Single source of truth for the UI."""
     return jsonify({
-        'categories': CATEGORIES,
-        'category_order': CATEGORY_ORDER,
-        'custom_categories': overrides_service.get_custom_categories(),
+        'catalog': categories_service.get_catalog(),
+        'category_order': categories_service.get_order(),
     })
 
 
 def _valid_categories():
-    """Built-in categories plus any user-added custom ones."""
-    return set(CATEGORY_ORDER) | {c['name'] for c in overrides_service.get_custom_categories()}
+    """All known category names (built-in + user-created)."""
+    return {c['name'] for c in categories_service.get_catalog()}
 
 
 @bp.route('/api/reports', methods=['GET'])
@@ -226,21 +224,79 @@ def set_budget_goal():
 
 @bp.route('/api/custom-categories', methods=['GET', 'POST'])
 def custom_categories():
+    """GET: the full catalog. POST {name, color, icon, keywords?}: create a category."""
     if request.method == 'GET':
-        return jsonify({'custom_categories': overrides_service.get_custom_categories()})
+        return jsonify({'catalog': categories_service.get_catalog()})
 
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
     color = (body.get('color') or '').strip()
     icon = (body.get('icon') or 'fa-tag').strip()
+    keywords = _clean_keywords(body.get('keywords'))
     if not name:
         return jsonify({'error': 'name is required'}), 400
-    if name in CATEGORY_ORDER:
+    if categories_service.is_known(name):
         return jsonify({'error': 'that category already exists'}), 400
     if not color:
         color = '#6366f1'
-    entry = overrides_service.add_custom_category(name, color, icon)
+    entry = categories_service.add(name, color, icon, keywords)
     return jsonify({'ok': True, 'category': entry})
+
+
+@bp.route('/api/custom-categories/<name>', methods=['PUT', 'DELETE'])
+def edit_custom_category(name):
+    """Edit (PUT) or delete (DELETE) ANY category — built-in or custom.
+
+    - PUT body {name, color, icon, keywords?}: rename / restyle / re-key. On rename,
+      transactions follow via override + rule repointing. 'other' can't be renamed.
+    - DELETE: remove it and move all its transactions to 'other'. 'other' is protected.
+    """
+    if not categories_service.is_known(name):
+        return jsonify({'error': 'unknown category'}), 404
+
+    if request.method == 'DELETE':
+        if not categories_service.is_deletable(name):
+            return jsonify({'error': "the 'other' category can't be deleted"}), 400
+        categories_service.delete(name)
+        # Move its transactions to 'other' by repointing any rules/overrides.
+        overrides_service.repoint_category(name, categories_service.FALLBACK_CATEGORY)
+        return jsonify({'ok': True, 'deleted': name})
+
+    body = request.get_json(silent=True) or {}
+    new_name = (body.get('name') or '').strip()
+    color = (body.get('color') or '#6366f1').strip()
+    icon = (body.get('icon') or 'fa-tag').strip()
+    keywords = _clean_keywords(body.get('keywords'))
+    if not new_name:
+        return jsonify({'error': 'name is required'}), 400
+    if new_name.lower() != name.lower() and categories_service.is_known(new_name):
+        return jsonify({'error': 'that category already exists'}), 400
+
+    entry, renamed = categories_service.update(name, new_name, color, icon, keywords)
+    if entry is None:
+        return jsonify({'error': 'unknown category'}), 404
+    if renamed:
+        overrides_service.repoint_category(name, new_name)
+    return jsonify({'ok': True, 'category': entry, 'old_name': name})
+
+
+def _clean_keywords(raw):
+    """Normalise a keywords payload (list or comma/newline string) → deduped list."""
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        parts = raw.replace('\n', ',').split(',')
+    elif isinstance(raw, (list, tuple)):
+        parts = raw
+    else:
+        return None
+    seen, out = set(), []
+    for p in parts:
+        kw = str(p).strip().lower()
+        if kw and kw not in seen:
+            seen.add(kw)
+            out.append(kw)
+    return out
 
 
 @bp.route('/api/create-category-from-suggestion', methods=['POST'])
@@ -255,10 +311,10 @@ def create_category_from_suggestion():
     merchants = body.get('merchants') or []
     if not name:
         return jsonify({'error': 'name is required'}), 400
-    if name in CATEGORY_ORDER:
+    if categories_service.is_known(name):
         return jsonify({'error': 'that category already exists'}), 400
 
-    entry = overrides_service.add_custom_category(name, color, icon)
+    entry = categories_service.add(name, color, icon)
     # Point each selected merchant's rule at the new category so all its txns move.
     for m in merchants:
         if m:
@@ -557,6 +613,21 @@ def transactions_for_merchants():
     })
 
 
+@bp.route('/api/recurring')
+def recurring():
+    """Detected recurring charges (subscriptions & bills) with inferred cadence,
+    predicted next-charge date, price-change flags and committed-spend total.
+    Deterministic; uses only date+merchant+amount already in the data."""
+    all_expenses = get_expenses(exclude_outliers=_should_exclude_outliers())
+    result = recurring_service.detect_recurring(all_expenses)
+    # Enrich each item with the catalog color/icon (falls back to a sensible default).
+    for item in result['recurring']:
+        entry = categories_service.get_entry(item['category'])
+        item['color'] = entry['color'] if entry else '#57534e'
+        item['icon'] = entry['icon'] if entry else 'fa-rotate'
+    return jsonify(result)
+
+
 @bp.route('/api/recommendations')
 def recommendations():
     """Deterministic, local savings recommendations vs the knowledge base + goal.
@@ -579,7 +650,7 @@ def recommendations():
     result = recommendations_service.build_recommendations({
         'monthly_sums': monthly_sums,
         'recent_txs': recent_txs,
-        'all_txs': [_ser(tx) for tx in all_expenses],
+        'recurring': recurring_service.detect_recurring(all_expenses),
         'goal': settings_service.get('budget_goal'),
     })
     return jsonify(result)

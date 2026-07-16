@@ -76,6 +76,7 @@ openinsider/.claude/
 # Bundled synthetic demo data lives in expenses/sample_reports/ (committed) instead.
 expenses/expense_reports/
 expenses/data/category_overrides.json
+expenses/data/categories.json
 expenses/data/settings.json
 expenses/data/gold_purchases.json
 

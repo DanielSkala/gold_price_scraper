@@ -1,61 +1,62 @@
-// ── Category Color Map (single source of truth) ──
-// One intentional color per category, used everywhere (donut slices, trend lines,
-// breakdown card borders, transaction badges). Hues encode meaning:
-//   NEEDS (essential)      → calm cool hues that recede
-//   WANTS (discretionary)  → warm attention-drawing hues (invite cutting)
-//   NEUTRAL (mixed)        → muted, neither encourage nor flag
-// fg = saturated (text / lines / slices), bg = light tint (badge background).
-export const CATEGORY_COLORS = {
-    // NEEDS — calm cool
-    groceries:    { fg: '#0f766e', bg: '#eefaf8' },  // deep teal
-    gas_stations: { fg: '#1d4ed8', bg: '#eff6ff' },  // blue (utilitarian)
-    parking:      { fg: '#0369a1', bg: '#eff8fd' },  // steel blue
-    car_wash:     { fg: '#0891b2', bg: '#ecfeff' },  // cyan
-    oil_partner:  { fg: '#4d7c0f', bg: '#f7fee7' },  // olive
-    // WANTS — warm, eye-catching
-    eating_out:   { fg: '#c2410c', bg: '#fff7ed' },  // burnt orange
-    travel:       { fg: '#b45309', bg: '#fffbeb' },  // amber
-    bolt:         { fg: '#be123c', bg: '#fff1f2' },  // coral/rose (taxi)
-    // NEUTRAL — muted
-    nabytok:      { fg: '#7c3aed', bg: '#f5f3ff' },  // violet (furniture)
-    other:        { fg: '#57534e', bg: '#f5f5f4' },  // warm gray
+// ── Category catalog (single source of truth, loaded from the backend) ──
+// Every category — built-in or user-created — is data: {name, fg (color), bg (tint),
+// icon, keywords, builtin}. The catalog is fetched from /api/categories at startup
+// (see registerCatalog); until then a small seed keeps the very first paint sensible.
+// Colors are used everywhere (donut slices, trend lines, card borders, badges).
+export const CATEGORY_CATALOG = {};   // catKey → {name, fg, bg, icon, keywords, builtin}
+
+const CATEGORY_FALLBACK = { name: 'other', fg: '#57534e', bg: '#f5f5f4', icon: 'fa-tag', builtin: true };
+
+// Minimal seed so a render before the fetch resolves isn't colorless. Replaced wholesale
+// by the backend catalog on load — NOT the source of truth.
+const _SEED = {
+    groceries:    ['#0f766e', 'fa-basket-shopping'], gas_stations: ['#1d4ed8', 'fa-gas-pump'],
+    parking:      ['#0369a1', 'fa-square-parking'],  car_wash:     ['#0891b2', 'fa-car'],
+    oil_partner:  ['#4d7c0f', 'fa-oil-can'],         eating_out:   ['#c2410c', 'fa-utensils'],
+    travel:       ['#b45309', 'fa-plane'],           bolt:         ['#be123c', 'fa-taxi'],
+    nabytok:      ['#7c3aed', 'fa-couch'],           other:        ['#57534e', 'fa-receipt'],
 };
+for (const [k, [color, icon]] of Object.entries(_SEED)) {
+    CATEGORY_CATALOG[k] = { name: k.replace(/_/g, ' '), fg: color, bg: tintOf(color), icon, keywords: [], builtin: true };
+}
 
-const CATEGORY_FALLBACK = { fg: '#57534e', bg: '#f5f5f4' };
-
-// Subtle FontAwesome icon per category. Obvious real-world mapping.
-export const CATEGORY_ICONS = {
-    groceries:    'fa-basket-shopping',
-    gas_stations: 'fa-gas-pump',
-    parking:      'fa-square-parking',
-    car_wash:     'fa-car',
-    oil_partner:  'fa-oil-can',
-    eating_out:   'fa-utensils',
-    travel:       'fa-plane',
-    bolt:         'fa-taxi',        // bolt = taxi
-    nabytok:      'fa-couch',       // furniture
-    other:        'fa-receipt',
-};
-
-// Custom categories added at runtime via the UI (loaded from /api/custom-categories).
-// Each: {name, color, icon}. Merged into the lookups below.
-export const CUSTOM_CATEGORIES = {};  // key -> {fg, bg, icon}
-
-export function registerCustomCategories(list) {
+// Replace the whole catalog from the backend payload ([{name, color, icon, keywords, builtin}]).
+export function registerCatalog(list) {
+    for (const k of Object.keys(CATEGORY_CATALOG)) delete CATEGORY_CATALOG[k];
     for (const c of (list || [])) {
-        // Keep the original display name so pickers/badges show it with its real casing.
-        CUSTOM_CATEGORIES[catKey(c.name)] = { name: c.name, fg: c.color, bg: tintOf(c.color), icon: c.icon || 'fa-tag' };
+        CATEGORY_CATALOG[catKey(c.name)] = {
+            name: c.name, fg: c.color, bg: tintOf(c.color),
+            icon: c.icon || 'fa-tag', keywords: c.keywords || [], builtin: !!c.builtin,
+        };
     }
 }
 
-// Display names of all custom categories, in their original casing.
-export function customCategoryNames() {
-    return Object.values(CUSTOM_CATEGORIES).map(c => c.name);
+// All category display names, in catalog order-ish (Object insertion order).
+export function allCategoryNames() {
+    return Object.values(CATEGORY_CATALOG).map(c => c.name);
+}
+
+// The stored entry for a category (for edit-dialog prefill etc.), or null.
+export function getCategoryEntry(name) {
+    return CATEGORY_CATALOG[catKey(name)] || null;
+}
+
+// Every category is now editable; only 'other' is protected from rename/delete.
+export function isEditableCategory(name) {
+    return catKey(name) !== 'other';
+}
+export function isDeletableCategory(name) {
+    return catKey(name) !== 'other' && !!CATEGORY_CATALOG[catKey(name)];
+}
+
+// Drop a category from the client cache (after it's deleted server-side).
+export function unregisterCategory(name) {
+    delete CATEGORY_CATALOG[catKey(name)];
 }
 
 // Derive a light background tint from a foreground hex (mix ~12% toward white bg).
 function tintOf(hex) {
-    const h = hex.replace('#', '');
+    const h = String(hex || '#57534e').replace('#', '');
     const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
     const mix = (c) => Math.round(c + (247 - c) * 0.88);  // toward #f7f6f3-ish
     return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
@@ -67,20 +68,12 @@ function catKey(name) {
 }
 
 function catEntry(name) {
-    const k = catKey(name);
-    return CATEGORY_COLORS[k] || CUSTOM_CATEGORIES[k] || CATEGORY_FALLBACK;
+    return CATEGORY_CATALOG[catKey(name)] || CATEGORY_FALLBACK;
 }
 
-export function getCategoryColor(name) {
-    return catEntry(name).fg;
-}
-export function getCategoryBg(name) {
-    return catEntry(name).bg;
-}
-export function getCategoryIcon(name) {
-    const k = catKey(name);
-    return CATEGORY_ICONS[k] || (CUSTOM_CATEGORIES[k] && CUSTOM_CATEGORIES[k].icon) || 'fa-tag';
-}
+export function getCategoryColor(name) { return catEntry(name).fg; }
+export function getCategoryBg(name) { return catEntry(name).bg; }
+export function getCategoryIcon(name) { return catEntry(name).icon || 'fa-tag'; }
 
 // Stat-card accent bars are structural, not category-bound: primary, teal, amber, gray.
 export const STAT_ACCENTS = ['#2563eb', '#0f766e', '#b45309', '#57534e'];

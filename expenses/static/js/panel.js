@@ -10,16 +10,21 @@ export function txKey(tx) {
     return `${tx.date}|${tx.merchant}|${tx.amount}|${tx.category}`;
 }
 
-export function openPanel({ title, subtitle = null, transactions, showDate = true, dateForPhotos = null, category = null, calendarCtx = undefined, selectedDay = null, dayGroupCategory = null, backCategory = null }) {
+export function openPanel({ title, subtitle = null, transactions, showDate = true, dateForPhotos = null, category = null, calendarCtx = undefined, selectedDay = null, dayGroupCategory = null, dayGroupKeys = null, backCategory = null }) {
     panelState.title = title;
     panelState.allTxs = [...transactions];
     panelState.showDate = showDate;
     panelState.category = category;
     // Calendar context persists across day drill-downs. `undefined` = keep whatever
     // is set (used when we don't want to touch it); pass `null` to explicitly clear.
-    if (calendarCtx !== undefined) panelState.calendarCtx = calendarCtx;
+    // A brand-new context resets which month the calendar shows (→ its busiest month).
+    if (calendarCtx !== undefined) {
+        panelState.calendarCtx = calendarCtx;
+        panelState.calMonth = null;
+    }
     panelState.selectedDay = selectedDay;
     panelState.dayGroupCategory = dayGroupCategory;  // group this category first in a day view
+    panelState.dayGroupKeys = dayGroupKeys;          // virtual-category membership by txKey (suggested categories)
     panelState.backCategory = backCategory;          // show a "back to category" link
     panelState.filter = { q: '' };
     panelState.sort = 'amount-desc';
@@ -87,11 +92,34 @@ function renderCategoryCalendar() {
     const ctx = panelState.calendarCtx;
     if (!ctx || !ctx.txs || !ctx.txs.length) return '';
 
-    // Pick the month to display: selectedMonth if it has data here, else the
-    // latest month among these transactions.
+    // A category can span MANY months, but a calendar shows one — so it's navigable.
+    // Months that actually have transactions, sorted ascending.
     const monthsPresent = [...new Set(ctx.txs.map(t => t.date.slice(0, 7)))].sort();
-    let month = state.selectedMonth;
-    if (!month || !monthsPresent.includes(month)) month = monthsPresent[monthsPresent.length - 1];
+    // Per-month totals, to default to the busiest month and show a per-month count.
+    const perMonthCount = {};
+    for (const t of ctx.txs) {
+        const mk = t.date.slice(0, 7);
+        perMonthCount[mk] = (perMonthCount[mk] || 0) + 1;
+    }
+    const busiest = monthsPresent.reduce((a, b) => (perMonthCount[b] > (perMonthCount[a] || 0) ? b : a), monthsPresent[0]);
+
+    // Which month to display: the explicitly-navigated one (if it has data), else the
+    // day being viewed, else the currently-selected app month, else the busiest month.
+    let month = panelState.calMonth;
+    if (!month || !monthsPresent.includes(month)) {
+        if (panelState.selectedDay && monthsPresent.includes(panelState.selectedDay.slice(0, 7))) {
+            month = panelState.selectedDay.slice(0, 7);
+        } else if (state.selectedMonth && monthsPresent.includes(state.selectedMonth)) {
+            month = state.selectedMonth;
+        } else {
+            month = busiest;
+        }
+    }
+    panelState.calMonth = month;   // remember so prev/next have a base
+
+    const monthIdx = monthsPresent.indexOf(month);
+    const hasPrev = monthIdx > 0;
+    const hasNext = monthIdx < monthsPresent.length - 1;
 
     // Sum per day for this month.
     const perDay = {};   // day-of-month -> total amount
@@ -105,7 +133,9 @@ function renderCategoryCalendar() {
     const daysInMonth = new Date(y, m, 0).getDate();
     // JS getDay: 0=Sun..6=Sat. Convert to Monday-first offset (0=Mon..6=Sun).
     const firstDow = (new Date(y, m - 1, 1).getDay() + 6) % 7;
-    const color = getCategoryColor(ctx.category);
+    // Use an explicit color if the ctx supplies one (e.g. a suggested category that
+    // isn't in the catalog yet), else fall back to the category's catalog color.
+    const color = ctx.color || getCategoryColor(ctx.category);
     const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const activeDays = Object.keys(perDay).length;
     const selDay = (panelState.selectedDay && panelState.selectedDay.slice(0, 7) === month)
@@ -133,15 +163,40 @@ function renderCategoryCalendar() {
         }
     }
 
+    // Total active days across ALL months (so the header isn't mistaken for the whole).
+    const totalDays = new Set(ctx.txs.map(t => t.date)).size;
+    const spanHint = monthsPresent.length > 1
+        ? `<span class="cal-legend"><span class="cal-swatch" style="background:${color}"></span>${totalDays} days · ${monthsPresent.length} mo</span>`
+        : `<span class="cal-legend"><span class="cal-swatch" style="background:${color}"></span>${activeDays} ${activeDays === 1 ? 'day' : 'days'}</span>`;
+
     return `
         <div class="cat-calendar">
             <div class="cal-head">
-                <span class="cal-title">${monthLabel}</span>
-                <span class="cal-legend"><span class="cal-swatch" style="background:${color}"></span>${activeDays} ${activeDays === 1 ? 'day' : 'days'}</span>
+                <span class="cal-nav">
+                    <button class="cal-arrow" ${hasPrev ? '' : 'disabled'} title="Previous month"
+                        onclick="event.stopPropagation(); App.calStepMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <span class="cal-title">${monthLabel}</span>
+                    <button class="cal-arrow" ${hasNext ? '' : 'disabled'} title="Next month"
+                        onclick="event.stopPropagation(); App.calStepMonth(1)"><i class="fas fa-chevron-right"></i></button>
+                </span>
+                ${spanHint}
             </div>
             <div class="cal-grid">${cells}</div>
         </div>
     `;
+}
+
+// Step the calendar to the previous (-1) / next (+1) month that has transactions.
+export function calStepMonth(delta) {
+    const ctx = panelState.calendarCtx;
+    if (!ctx || !ctx.txs) return;
+    const monthsPresent = [...new Set(ctx.txs.map(t => t.date.slice(0, 7)))].sort();
+    const cur = panelState.calMonth || monthsPresent[monthsPresent.length - 1];
+    const idx = monthsPresent.indexOf(cur);
+    const next = monthsPresent[idx + delta];
+    if (!next) return;   // at an end — arrow is disabled anyway
+    panelState.calMonth = next;
+    renderPanelCalendar();
 }
 
 // Render the calendar into its OWN fixed container above the photos, so it never
@@ -233,9 +288,14 @@ export function renderPanelBody() {
     const grp = panelState.dayGroupCategory;
     if (grp) {
         // Day view opened from a category: show that category's items first,
-        // then a divider, then everything else that day.
-        const inCat = filtered.filter(t => t.category === grp);
-        const others = filtered.filter(t => t.category !== grp);
+        // then a divider, then everything else that day. For a VIRTUAL (suggested)
+        // category, membership is defined by the suggestion's own transactions
+        // (matched by txKey) — the items still live in `other`, so tx.category
+        // wouldn't match the suggested name.
+        const keys = panelState.dayGroupKeys;
+        const inGroup = keys ? (t => keys.has(txKey(t))) : (t => t.category === grp);
+        const inCat = filtered.filter(inGroup);
+        const others = filtered.filter(t => !inGroup(t));
         const catName = grp.replace('_', ' ').replace('-', ' ');
         listHtml =
             sectionLabel(`${catName} (${inCat.length})`) +
@@ -395,7 +455,12 @@ export function showCategoryDetails(category) {
 export function showDayDetails(date, keepCalendar = false) {
     // The category we came from (if any) — used to group the day's list and to
     // offer a "back to category" link.
-    const fromCategory = keepCalendar && panelState.calendarCtx ? panelState.calendarCtx.category : null;
+    const ctx = keepCalendar ? panelState.calendarCtx : null;
+    const fromCategory = ctx ? ctx.category : null;
+    // A virtual (suggested) category groups by its own transactions, not tx.category.
+    const groupKeys = ctx && ctx.virtual && ctx.txs
+        ? new Set(ctx.txs.map(txKey))
+        : null;
 
     const openWith = (monthDetails) => {
         const allMonthTxs = Object.values(monthDetails.category_transactions || {}).flat();
@@ -410,7 +475,9 @@ export function showDayDetails(date, keepCalendar = false) {
             calendarCtx: keepCalendar ? undefined : null,  // undefined = keep, null = clear
             selectedDay: keepCalendar ? date : null,
             dayGroupCategory: fromCategory,   // group this category first, then a divider
-            backCategory: fromCategory,       // enables the "back to category" link
+            dayGroupKeys: groupKeys,          // virtual category: membership by txKey
+            // A suggested category has no real page to go "back" to — only real ones do.
+            backCategory: groupKeys ? null : fromCategory,
         });
     };
 

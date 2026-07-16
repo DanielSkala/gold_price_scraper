@@ -34,8 +34,10 @@ export const panelState = {
     showDate: true,      // show date under merchant (false when panel is a single-day view)
     category: null,      // the category this panel is filtered to (null for day / all views)
     calendarCtx: null,   // {category, txs} — drives the calendar; persists across day drill-downs
+    calMonth: null,      // 'YYYY-MM' currently shown in the calendar (prev/next navigable)
     selectedDay: null,   // YYYY-MM-DD of the day being viewed (ringed in the calendar)
     dayGroupCategory: null, // in a day view opened from a category, list this category first
+    dayGroupKeys: null,     // for a VIRTUAL (suggested) category: membership by txKey, not tx.category
     backCategory: null,  // category to return to via the "back" link
     allTxs: [],          // unfiltered
     filter: { q: '' },

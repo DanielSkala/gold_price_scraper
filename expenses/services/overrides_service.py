@@ -13,9 +13,19 @@ bare {tx_key: category} map are migrated on load.
 """
 import json
 import os
+import re
 import threading
 
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'category_overrides.json')
+
+# Legal-entity suffix tokens that carry no brand meaning ("Billa spol s r o" → "billa").
+_LEGAL_SUFFIX_TOKENS = {
+    "sro", "sr", "ro", "s", "r", "o", "as", "spol", "ltd", "inc", "llc", "gmbh",
+    "kg", "co", "ltda", "plc", "kft", "ag", "bv", "oy", "ab",
+}
+
+# Web/TLD noise tokens so 'Netflix.com' and 'NETFLIX 8801' both group as 'netflix'.
+_WEB_TOKENS = {"com", "www", "net", "org", "io", "app", "sk", "cz", "eu"}
 
 _lock = threading.Lock()
 _cache = None  # dict with keys "overrides" and "rules"
@@ -27,8 +37,41 @@ def tx_key(date_str, merchant, amount):
 
 
 def merchant_key(merchant):
-    """Normalized merchant identity for a rule (case/space-insensitive)."""
+    """Normalized merchant IDENTITY for a rule (case/space-insensitive).
+
+    Kept intentionally exact (per-branch): this is the persisted key for merchant
+    rules & overrides, so it must stay stable and precise. For BRAND-LEVEL grouping
+    (recurring detection, clustering) use `normalize_merchant` instead."""
     return " ".join(str(merchant).lower().split())
+
+
+def normalize_merchant(merchant):
+    """Brand-level grouping key: collapses store branches to one merchant.
+
+    Strips trailing store/branch numbers and location codes and drops legal-entity
+    suffixes, so 'LIDL 164', 'LIDL 042 BA' and 'Lidl' all map to 'lidl', and
+    'BILLA SPOL S RO 113' maps to 'billa'. Used for clustering transactions from the
+    same brand together (recurring-charge detection, discovery) — NOT for rule
+    identity (see `merchant_key`)."""
+    s = str(merchant).lower()
+    # Keep letters/digits/spaces; turn everything else into a separator.
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    tokens = s.split()
+    # Drop trailing pure-digit tokens (store/branch numbers) and 2-letter city/branch
+    # codes that follow them (e.g. 'lidl 042 ba' → 'lidl').
+    while tokens and (tokens[-1].isdigit() or (len(tokens[-1]) <= 2 and tokens[-1].isalpha() and len(tokens) > 1 and any(t.isdigit() for t in tokens[:-1]))):
+        tokens.pop()
+    # Drop legal-entity suffix tokens anywhere they appear.
+    tokens = [t for t in tokens if t not in _LEGAL_SUFFIX_TOKENS]
+    # Drop any remaining standalone digit tokens (embedded reference numbers).
+    tokens = [t for t in tokens if not t.isdigit()]
+    # Drop web/TLD noise tokens, but only if a real brand token survives (so a
+    # merchant literally named just "app"/"io" isn't erased).
+    if any(t not in _WEB_TOKENS for t in tokens):
+        tokens = [t for t in tokens if t not in _WEB_TOKENS]
+    result = " ".join(tokens).strip()
+    # Never collapse to nothing — fall back to the exact key if stripping ate it all.
+    return result or merchant_key(merchant)
 
 
 def _load():
@@ -68,23 +111,18 @@ def get_rules():
     return dict(_load()['rules'])
 
 
-def get_custom_categories():
-    """Return the list of user-added categories: [{name, color, icon}]."""
-    return list(_load()['custom_categories'])
-
-
-def add_custom_category(name, color, icon):
-    """Add a custom category (idempotent by name). Returns the stored dict."""
-    entry = {'name': name, 'color': color, 'icon': icon}
+def repoint_category(old_category, new_category):
+    """Repoint every merchant rule and per-transaction override from one category
+    name to another. Used when a category is renamed (→ new name) or deleted
+    (→ 'other'), so the transactions the user manually placed there follow along
+    instead of silently reverting to keyword auto-categorisation."""
     with _lock:
         data = _load()
-        existing = [c for c in data['custom_categories'] if c['name'].lower() == name.lower()]
-        if existing:
-            existing[0].update(entry)
-        else:
-            data['custom_categories'].append(entry)
+        for store in ('rules', 'overrides'):
+            for k, v in list(data[store].items()):
+                if v == old_category:
+                    data[store][k] = new_category
         _save()
-    return entry
 
 
 def set_merchant_rule(merchant, category):

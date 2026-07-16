@@ -172,11 +172,31 @@
             align-items: center;
             margin-bottom: 7px;
         }
+        .cat-calendar .cal-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
         .cat-calendar .cal-title {
             font-size: 0.78rem;
             font-weight: 600;
             color: var(--text-2);
+            min-width: 108px;
+            text-align: center;
         }
+        .cat-calendar .cal-arrow {
+            width: 22px; height: 22px;
+            border: none; border-radius: 50%;
+            background: color-mix(in srgb, var(--text) 7%, transparent);
+            color: var(--text-2);
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.62rem;
+            transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+        }
+        .cat-calendar .cal-arrow:hover:not(:disabled) { background: var(--text); color: var(--surface); }
+        .cat-calendar .cal-arrow:active:not(:disabled) { transform: scale(0.88); }
+        .cat-calendar .cal-arrow:disabled { opacity: 0.28; cursor: default; }
         .cat-calendar .cal-legend {
             display: inline-flex;
             align-items: center;

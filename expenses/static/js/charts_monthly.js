@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { getCategoryColor, getCategoryIcon, plotlyFont, plotlyGrid, chartBg, hoverLabel, isDark, PLOTLY_CONFIG } from './constants.js';
+import { getCategoryColor, getCategoryIcon, isEditableCategory, isDeletableCategory, plotlyFont, plotlyGrid, chartBg, hoverLabel, isDark, PLOTLY_CONFIG } from './constants.js';
 import { renderMonthMemories } from './memories.js';
 import { showCategoryDetails, showDayDetails } from './panel.js';
 import { renderMonthlyTransactionsTable } from './transactions.js';
@@ -362,15 +362,19 @@ export function renderCategoryBreakdown() {
                 const pct = ((amount / total) * 100).toFixed(1);
                 const txCount = state.currentMonthDetails.category_transactions[cat]?.length || 0;
                 const color = getCategoryColor(cat);
+                const safe = cat.replace(/'/g, "\\'");
+                // Every category can be edited; only 'other' can't be deleted or renamed.
+                const editBtn = isEditableCategory(cat) ? `
+                        <button class="cat-card-btn" title="Edit category"
+                            onclick="event.stopPropagation(); App.editCategory('${safe}')"><i class="fas fa-pen"></i></button>` : '';
+                const delBtn = isDeletableCategory(cat) ? `
+                        <button class="cat-card-btn cat-card-del" title="Delete category"
+                            onclick="event.stopPropagation(); App.deleteCategory('${safe}')"><i class="fas fa-trash"></i></button>` : '';
+                const actions = (editBtn || delBtn) ? `<div class="cat-card-actions">${editBtn}${delBtn}</div>` : '';
                 return `
-                    <div onclick="App.showCategoryDetails('${cat}')" style="
-                        padding: 14px 16px;
-                        border: 1px solid var(--border);
-                        border-left: 3px solid ${color};
-                        border-radius: 8px;
-                        cursor: pointer;
-                        transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
-                    " onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+                    <div class="cat-breakdown-card" onclick="App.showCategoryDetails('${safe}')"
+                        style="border-left-color:${color};">
+                        ${actions}
                         <div style="font-weight: 600; font-size: 0.85rem; text-transform: capitalize; margin-bottom: 4px; display:flex; align-items:center; gap:7px;">
                             <i class="fas ${getCategoryIcon(cat)}" style="color:${color}; font-size:0.8rem;"></i>
                             ${cat.replace('_', ' ').replace('-', ' ')}

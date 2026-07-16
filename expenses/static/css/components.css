@@ -664,6 +664,88 @@
         }
         .insight-more:hover { color: var(--primary-hover); text-decoration: underline; }
 
+        /* Upcoming & recurring: ONE compact "committed spend" band — a hero total, a
+           segmented proportional meter (a slice per charge), a live readout that
+           follows the hovered slice/chip, and a wrap of clickable chips. Distinct
+           from the card grids elsewhere and about a third of the old height. */
+        .rec-band {
+            display: flex; align-items: stretch; gap: 22px;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow);
+        }
+        @media (max-width: 720px) { .rec-band { flex-direction: column; gap: 14px; } }
+        .rec-band-left {
+            flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center;
+            padding-right: 22px; border-right: 1px solid var(--hairline); min-width: 128px;
+        }
+        @media (max-width: 720px) {
+            .rec-band-left { border-right: none; border-bottom: 1px solid var(--hairline); padding: 0 0 12px; }
+        }
+        .rec-total {
+            font-family: var(--font-serif); font-weight: 500; font-size: 2rem;
+            line-height: 1; color: var(--text); letter-spacing: -0.02em;
+        }
+        .rec-total-cur { font-size: 1.15rem; color: var(--text-3); margin-right: 1px; }
+        .rec-total-label {
+            font-size: 0.72rem; color: var(--text-3); margin-top: 5px;
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .rec-band-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+        /* Live readout line (defaults to the next upcoming charge). */
+        .rec-readout {
+            display: flex; align-items: center; gap: 10px; min-height: 38px;
+        }
+        .rec-ro-dot {
+            flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 0.75rem;
+        }
+        .rec-ro-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .rec-ro-title { font-size: 0.86rem; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .rec-ro-title b { font-weight: 600; }
+        .rec-ro-sub { font-size: 0.74rem; color: var(--text-3); }
+        .rec-ro-tag { color: var(--primary); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+        .rec-ro-tag i { font-size: 0.68rem; margin-right: 2px; }
+        .rec-ro-ghost { color: var(--caution); }
+        .rec-ro-hike { font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+        .rec-ro-up { color: var(--neg); }
+        .rec-ro-down { color: var(--pos); }
+        .rec-ro-hike i { font-size: 0.64rem; margin-right: 2px; }
+
+        /* Segmented proportional meter — one slice per active charge. */
+        .rec-meter {
+            display: flex; gap: 2px; height: 12px; border-radius: 999px; overflow: hidden;
+        }
+        .rec-seg {
+            min-width: 3px; cursor: pointer;
+            opacity: 0.82; transition: opacity var(--dur-fast, 0.15s) ease, transform var(--dur-fast, 0.15s) ease;
+            transform-origin: center bottom;
+        }
+        .rec-seg:first-child { border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+        .rec-seg:last-child  { border-top-right-radius: 999px; border-bottom-right-radius: 999px; }
+        .rec-seg:hover, .rec-seg.is-active { opacity: 1; transform: scaleY(1.35); }
+
+        /* Clickable chips. */
+        .rec-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+        .rec-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            border: 1px solid var(--hairline); background: var(--bg);
+            border-radius: 999px; padding: 4px 10px 4px 8px; cursor: pointer;
+            font-family: var(--font-sans); font-size: 0.76rem; color: var(--text-2);
+            transition: border-color var(--dur-fast, 0.15s) ease, background var(--dur-fast, 0.15s) ease, transform var(--dur-fast, 0.15s) ease;
+        }
+        .rec-chip:hover, .rec-chip.is-active { border-color: var(--border); background: var(--surface); transform: translateY(-1px); }
+        .rec-chip.is-zombie { opacity: 0.6; }
+        .rec-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+        .rec-chip-name { font-weight: 500; color: var(--text); }
+        .rec-chip-amt { color: var(--text-3); }
+        .rec-chip-up { color: var(--neg); font-size: 0.6rem; }
+        .rec-chip-ghost { color: var(--caution); font-size: 0.9rem; line-height: 0; }
+
         /* How you compare: 4 small tiles with muted pastel icons. */
         .ov-tiles {
             display: grid;
@@ -903,6 +985,41 @@
             margin-right: 7px;
         }
 
+        /* Category card in the Spending-by-category grid. */
+        .cat-breakdown-card {
+            position: relative;
+            padding: 14px 16px;
+            border: 1px solid var(--hairline);
+            border-left: 3px solid var(--primary);
+            border-radius: 8px;
+            background: var(--surface);
+            cursor: pointer;
+            transition: background 0.12s ease, box-shadow 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+        }
+        .cat-breakdown-card:hover { box-shadow: var(--shadow); background: var(--bg); }
+
+        /* Edit/delete controls — hidden until hover so cards stay clean. */
+        .cat-card-actions {
+            position: absolute; top: 8px; right: 8px;
+            display: flex; gap: 4px;
+            opacity: 0;
+            transition: opacity 0.14s ease;
+        }
+        .cat-breakdown-card:hover .cat-card-actions,
+        .cat-card-actions:focus-within { opacity: 1; }
+        .cat-card-btn {
+            width: 24px; height: 24px; border-radius: 50%;
+            border: none; cursor: pointer;
+            background: color-mix(in srgb, var(--text) 8%, transparent);
+            color: var(--text-2);
+            font-size: 0.66rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.12s ease, color 0.12s ease, transform 0.1s var(--ease-out);
+        }
+        .cat-card-btn:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
+        .cat-card-btn:active { transform: scale(0.9); }
+        .cat-card-del:hover { background: var(--neg); color: #fff; }
+
         /* "+ New category" tile in the Spending-by-category grid. */
         .add-category-tile {
             display: flex;
@@ -1130,30 +1247,9 @@
         }
         .cat-picker-note i { margin-right: 4px; opacity: 0.7; }
 
-        /* Category badges — must match CATEGORY_COLORS in static/js/constants.js exactly.
-           NEEDS = cool, WANTS = warm, NEUTRAL = muted. */
-        .groceries    { background: #eefaf8; color: #0f766e; }  /* teal */
-        .gas-stations { background: #eff6ff; color: #1d4ed8; }  /* blue */
-        .parking      { background: #eff8fd; color: #0369a1; }  /* steel blue */
-        .car-wash     { background: #ecfeff; color: #0891b2; }  /* cyan */
-        .oil-partner  { background: #f7fee7; color: #4d7c0f; }  /* olive */
-        .eating-out   { background: #fff7ed; color: #c2410c; }  /* burnt orange */
-        .travel       { background: #fffbeb; color: #b45309; }  /* amber */
-        .bolt         { background: #fff1f2; color: #be123c; }  /* coral/rose */
-        .nabytok      { background: #f5f3ff; color: #7c3aed; }  /* violet */
-        .other        { background: #f5f5f4; color: #57534e; }  /* warm gray */
-
-        /* Dark mode: deep tinted badge backgrounds with brightened text. */
-        [data-theme="dark"] .groceries    { background: #0e2b28; color: #5eead4; }
-        [data-theme="dark"] .gas-stations { background: #13233f; color: #93c5fd; }
-        [data-theme="dark"] .parking      { background: #10273a; color: #7dd3fc; }
-        [data-theme="dark"] .car-wash     { background: #0c2a30; color: #67e8f9; }
-        [data-theme="dark"] .oil-partner  { background: #1e2a10; color: #bef264; }
-        [data-theme="dark"] .eating-out   { background: #331a0d; color: #fdba74; }
-        [data-theme="dark"] .travel       { background: #332608; color: #fcd34d; }
-        [data-theme="dark"] .bolt         { background: #330f18; color: #fda4af; }
-        [data-theme="dark"] .nabytok      { background: #241a3d; color: #c4b5fd; }
-        [data-theme="dark"] .other        { background: #2a2721; color: #d6d3d1; }
+        /* Category badge colors are applied INLINE from the live catalog (see
+           categoryBadgeHtml + getCategoryColor/getCategoryBg), so no per-category CSS
+           classes are needed — every category, built-in or custom, styles the same way. */
 
 
         /* ── Onboarding / empty state ───────────────── */

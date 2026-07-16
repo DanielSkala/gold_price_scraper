@@ -10,15 +10,16 @@ import { closePhotoLightbox, openPhotoLightbox, togglePanelPhotos } from './memo
 import { closeSidePanel, toggleOutliers } from './outliers.js';
 import {
     clearSelection, onPanelFilterChange, setPanelSort,
-    showCategoryDetails, showDayDetails, toggleTxSelection,
+    showCategoryDetails, showDayDetails, toggleTxSelection, calStepMonth,
 } from './panel.js';
 import { handleSort, loadMoreTransactions, toggleChart } from './transactions.js';
 import { initOverrideDelegation } from './overrides.js';
-import { openNewCategoryDialog } from './categories.js';
+import { openNewCategoryDialog, openEditCategoryDialog, deleteCategory } from './categories.js';
 import { setDailyMode } from './charts_monthly.js';
 import { toggleTheme, initTheme } from './theme.js';
 import { toggleSidebar, initSidebar } from './sidebar.js';
 import { initOnboarding } from './onboarding.js';
+import { loadAllData } from './loading.js';
 
 // Side-effect modules: register their DOM listeners / startup behaviour.
 import './loading.js';
@@ -45,10 +46,13 @@ window.App = {
     closePhotoLightbox, openPhotoLightbox, togglePanelPhotos,
     closeSidePanel, toggleOutliers,
     clearSelection, onPanelFilterChange, setPanelSort,
-    showCategoryDetails, showDayDetails, toggleTxSelection,
+    showCategoryDetails, showDayDetails, toggleTxSelection, calStepMonth,
     handleSort, loadMoreTransactions, toggleChart,
     setDailyMode, toggleGoalEdit,
     toggleTheme, toggleSidebar,
     // No tx to move when opened from the breakdown; just refresh so the new category shows.
-    openNewCategoryDialog: () => openNewCategoryDialog(() => {}),
+    openNewCategoryDialog: () => openNewCategoryDialog(() => loadAllData()),
+    // Edit / delete a custom category, then refresh the whole dashboard.
+    editCategory: (name) => openEditCategoryDialog(name, () => loadAllData()),
+    deleteCategory: (name) => deleteCategory(name, () => loadAllData()),
 };

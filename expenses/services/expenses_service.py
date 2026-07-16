@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 
 from credit_card_expenses import parse_expenses_from_csv
-from services import overrides_service
+from services import categories_service, overrides_service
 
 EXPENSE_REPORTS_DIR = "./expense_reports"
 
@@ -20,6 +20,12 @@ def get_expenses_data():
     for csv_file in csv_files:
         file_expenses = parse_expenses_from_csv(csv_file)
         all_expenses.extend(file_expenses)
+
+    # Re-run auto-categorisation through the live category catalog, so runtime edits
+    # to keywords / categories take effect without touching the CSV parser. (The
+    # parser's own category is just a first pass; the catalog is the source of truth.)
+    for tx in all_expenses:
+        tx["category"] = categories_service.categorize(tx["merchant"])
 
     # Apply manual reclassifications, in precedence order:
     #   1. per-transaction override (exact date|merchant|amount)  — highest

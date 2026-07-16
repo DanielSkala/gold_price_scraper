@@ -3,6 +3,7 @@ import { openNewCategoryDialog } from './categories.js';
 import { loadAllData } from './loading.js';
 import { openPanel } from './panel.js';
 import { linkifySources } from './sources.js';
+import { renderRecurring } from './recurring.js';
 
 // ── Overview insights: savings recommendations + category discovery ─────────
 // Both are backed by deterministic, local endpoints (no LLM). This module just
@@ -188,11 +189,17 @@ function openSuggestionItems(s) {
     })
         .then(r => r.json())
         .then(data => {
+            const txs = data.transactions || [];
             openPanel({
                 title: s.name,
                 subtitle: 'Suggested category · not added yet',
-                transactions: data.transactions || [],
+                transactions: txs,
                 showDate: true,
+                // Seed the calendar from THESE transactions (and clear any stale one from
+                // a previously-opened category) so the highlighted days match the items.
+                // `virtual: true` marks it as a not-yet-real category: day drill-downs must
+                // match membership by these transactions, not by a (nonexistent) tx.category.
+                calendarCtx: { category: s.name, txs, color: s.color, virtual: true },
             });
         })
         .catch(() => {});
@@ -254,6 +261,7 @@ function renderDiscoveryMore(rest, offset) {
 }
 
 export function renderOverviewInsights() {
+    renderRecurring();
     renderRecommendations();
     renderDiscovery();
 }

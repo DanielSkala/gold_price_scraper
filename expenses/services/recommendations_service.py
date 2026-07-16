@@ -293,30 +293,73 @@ def _analyse_vs_benchmarks(avg_cat):
     return recs
 
 
-def _analyse_subscriptions(txs_all):
-    """Detect likely recurring subscriptions by matching merchant names to known services."""
+def _analyse_subscriptions(recurring):
+    """Turn detected recurring charges into savings recommendations.
+
+    `recurring` is the output of recurring_service.detect_recurring(): real cadence
+    detection over the actual charge history, not name matching. Two flavours:
+      - A price-hike alert when a subscription's amount has crept up materially.
+      - A zombie/audit tip listing active recurring charges worth reviewing.
+    """
     recs = []
-    found = {}
-    for t in txs_all:
-        ml = t["merchant"].lower()
-        for key, meta in kb.SUBSCRIPTION_PRICES.items():
-            if any(tag in ml for tag in meta["tags"]):
-                found.setdefault(key, {"label": meta["label"], "typical": meta["typical"], "count": 0, "total": 0.0})
-                found[key]["count"] += 1
-                found[key]["total"] += t["amount"]
-    if not found:
+    items = (recurring or {}).get("recurring", [])
+    if not items:
         return recs
-    names = ", ".join(v["label"] for v in found.values())
-    est_monthly = sum(v["typical"] for v in found.values())
-    recs.append(_rec(
-        "subscription_audit",
-        "Review your subscriptions",
-        f"Detected likely subscriptions: {names}. Together these run roughly €{est_monthly:.0f}/mo. "
-        f"Cancel any you no longer use — even one saves its full price every month.",
-        est_monthly * 0.3,  # assume ~30% could be trimmed
-        None, "subscription", "tip",
-    ))
+
+    active = [r for r in items if not r["is_zombie"]]
+    zombies = [r for r in items if r["is_zombie"]]
+
+    # 1) Price-hike alert — the single biggest recent increase, if any is real.
+    hiked = [r for r in active if r["price_change_pct"] >= 0.10]
+    if hiked:
+        top = max(hiked, key=lambda r: r["price_change_pct"] * r["monthly_cost"])
+        pct = round(top["price_change_pct"] * 100)
+        recs.append(_rec(
+            "subscription_price_hike",
+            f"{_clean_name(top['display'])} costs more than it used to",
+            f"{_clean_name(top['display'])} has risen about {pct}% to ~€{top['last_amount']:.2f} "
+            f"per charge. Check whether the plan still earns its keep or can be downgraded.",
+            top["monthly_cost"] * 0.5,   # downgrading/dropping recovers a good chunk
+            None, "subscription", "watch",
+            assumption="Detected from the change between your earliest and latest charges.",
+        ))
+
+    # 2) Zombie alert — recurring charges that stopped appearing may still be billing
+    #    on a card you don't watch, or are ones you meant to cancel.
+    if zombies:
+        z = max(zombies, key=lambda r: r["monthly_cost"])
+        recs.append(_rec(
+            "subscription_zombie",
+            f"Is {_clean_name(z['display'])} still active?",
+            f"{_clean_name(z['display'])} billed ~€{z['avg_amount']:.2f} on a {z['cadence']} rhythm "
+            f"but hasn't appeared since {z['last_seen']}. Make sure it's actually cancelled — "
+            f"forgotten subscriptions quietly keep charging.",
+            z["monthly_cost"],
+            None, "subscription", "watch",
+        ))
+
+    # 3) General audit — the committed monthly base, so it's always visible.
+    committed = (recurring or {}).get("committed_monthly", 0.0)
+    if active and committed > 0:
+        names = ", ".join(_clean_name(r["display"]) for r in sorted(active, key=lambda r: -r["monthly_cost"])[:4])
+        recs.append(_rec(
+            "subscription_audit",
+            "Review your recurring charges",
+            f"You have {len(active)} recurring charge(s) — {names}"
+            f"{'…' if len(active) > 4 else ''} — totalling about €{committed:.0f}/mo. "
+            f"Cancelling any you no longer use saves its full price every month.",
+            committed * 0.25,   # assume ~a quarter is trimmable
+            None, "subscription", "tip",
+        ))
     return recs
+
+
+def _clean_name(raw):
+    """Tidy a raw merchant string for display in a sentence (drop URLs/ref codes)."""
+    s = str(raw).split("*")[-1].strip()
+    s = s.replace("WWW.", "").replace("www.", "")
+    # Keep it short and readable.
+    return s.title() if s.isupper() or s.islower() else s
 
 
 def _goal_analysis(avg_cat, monthly_total, goal, recs):
@@ -362,14 +405,14 @@ def build_recommendations(analysis_input):
     analysis_input = {
         "monthly_sums": {"YYYY-MM": {cat: amount}},   # for averaging
         "recent_txs":   [ {date, merchant, amount, category} ],  # last-N-month txns
-        "all_txs":      [ ... ],                       # for subscription detection
+        "recurring":    { recurring: [...], committed_monthly },  # from recurring_service
         "goal":         1250,
     }
     Returns {recommendations, headline, potential_savings, months_analysed, avg_total}.
     """
     monthly_sums = analysis_input.get("monthly_sums", {})
     recent_txs = analysis_input.get("recent_txs", [])
-    all_txs = analysis_input.get("all_txs", [])
+    recurring = analysis_input.get("recurring", {})
     goal = float(analysis_input.get("goal", 0) or 0)
 
     months = _recent_months(monthly_sums, n=3)
@@ -382,7 +425,7 @@ def build_recommendations(analysis_input):
     recs += _analyse_groceries(avg_cat)
     recs += _analyse_transport(avg_cat, recent_txs)
     recs += _analyse_vs_benchmarks(avg_cat)
-    recs += _analyse_subscriptions(all_txs)
+    recs += _analyse_subscriptions(recurring)
     # Generic, data-driven analysers (work for ANY category, now and in 30 years).
     recs += _analyse_category_trends(monthly_sums, months, avg_cat)
 

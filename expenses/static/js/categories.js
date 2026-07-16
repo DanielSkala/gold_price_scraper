@@ -1,6 +1,6 @@
 // ── Custom categories ──────────────────────────
 // Lets the user create their own category (name + color + icon) from the UI.
-import { registerCustomCategories } from './constants.js';
+import { registerCatalog, getCategoryEntry, unregisterCategory } from './constants.js';
 
 function escapeHtmlCat(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -97,11 +97,11 @@ const COLOR_CHOICES = [
     '#0d9488', '#65a30d', '#9333ea', '#e11d48', '#57534e',
 ];
 
-// Load custom categories once at startup so colors/icons resolve everywhere.
+// Load the full category catalog at startup so colors/icons/keywords resolve everywhere.
 export function loadCustomCategories() {
-    return fetch('/api/custom-categories')
+    return fetch('/api/categories')
         .then(r => r.json())
-        .then(d => { registerCustomCategories(d.custom_categories || []); })
+        .then(d => { registerCatalog(d.catalog || []); })
         .catch(() => {});
 }
 
@@ -125,6 +125,7 @@ let selColor, selIcon;
 export function openNewCategoryDialog(onCreated, opts = {}) {
     const prefill = opts.prefill || {};
     const items = opts.items || null;
+    const editing = opts.edit || null;   // {name, color, icon} → PUT instead of POST
     selColor = prefill.color || COLOR_CHOICES[8];
     selIcon = prefill.icon || ICON_CHOICES[0].i;
     let expanded = false;
@@ -143,12 +144,20 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
             </div>
     ` : '';
 
+    // Keyword field — shown for normal create/edit (not the merchant-checklist flow).
+    // Any transaction whose merchant contains one of these words auto-lands here.
+    const keywordsVal = (prefill.keywords || []).join(', ');
+    const keywordsHtml = items ? '' : `
+            <label class="newcat-label">Keywords <span class="newcat-count">merchant words that map here, comma-separated</span></label>
+            <input type="text" class="newcat-input" id="newcatKeywords" placeholder="e.g. lidl, tesco, billa" autocomplete="off" value="${escapeHtmlCat(keywordsVal)}">
+    `;
+
     const overlay = document.createElement('div');
     overlay.className = 'newcat-overlay';
     overlay.innerHTML = `
         <div class="newcat-dialog" role="dialog" aria-modal="true">
             <div class="newcat-head">
-                <h3>${items ? 'Add category' : 'New category'}</h3>
+                <h3>${editing ? 'Edit category' : (items ? 'Add category' : 'New category')}</h3>
                 <button class="newcat-close" aria-label="Close"><i class="fas fa-times"></i></button>
             </div>
             <label class="newcat-label">Name</label>
@@ -169,6 +178,7 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
             <div class="newcat-icons" id="newcatIcons"></div>
             <button class="newcat-more" id="newcatMore" type="button"></button>
 
+            ${keywordsHtml}
             ${itemsHtml}
 
             <div class="newcat-preview">
@@ -177,7 +187,7 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
 
             <div class="newcat-actions">
                 <button class="newcat-cancel">Cancel</button>
-                <button class="newcat-create">${items ? 'Add category' : 'Create category'}</button>
+                <button class="newcat-create">${editing ? 'Save changes' : (items ? 'Add category' : 'Create category')}</button>
             </div>
             <div class="newcat-error" id="newcatError"></div>
         </div>
@@ -269,9 +279,28 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
+    const kwInput = overlay.querySelector('#newcatKeywords');
+    const keywords = () => (kwInput ? kwInput.value : '');
+
     overlay.querySelector('.newcat-create').addEventListener('click', () => {
         const name = nameInput.value.trim();
         if (!name) { errEl.textContent = 'Please enter a name.'; nameInput.focus(); return; }
+        // After any create/edit the catalog can change wholesale (order, rename) — so
+        // re-fetch it before the caller re-renders, keeping the client cache truthful.
+        const refreshThen = () => loadCustomCategories().then(() => { close(); if (onCreated) onCreated(name); });
+
+        // Edit flow: PUT the updated name/color/icon/keywords for an existing category.
+        if (editing) {
+            fetch('/api/custom-categories/' + encodeURIComponent(editing.name), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color: selColor, icon: selIcon, keywords: keywords() }),
+            })
+                .then(r => r.json())
+                .then(d => { if (d.error) { errEl.textContent = d.error; return; } refreshThen(); })
+                .catch(() => { errEl.textContent = 'Could not save the category.'; });
+            return;
+        }
 
         // Suggested-category flow: custom submit with the selected merchant items.
         if (items && opts.onSubmit) {
@@ -279,7 +308,7 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
                 .map(cb => items[parseInt(cb.dataset.idx, 10)].merchant);
             if (!merchants.length) { errEl.textContent = 'Select at least one item.'; return; }
             Promise.resolve(opts.onSubmit({ name, color: selColor, icon: selIcon, merchants }))
-                .then(() => { close(); if (onCreated) onCreated(name); })
+                .then(() => refreshThen())
                 .catch(() => { errEl.textContent = 'Could not create the category.'; });
             return;
         }
@@ -287,21 +316,39 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
         fetch('/api/custom-categories', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, color: selColor, icon: selIcon }),
+            body: JSON.stringify({ name, color: selColor, icon: selIcon, keywords: keywords() }),
         })
             .then(r => r.json())
-            .then(d => {
-                if (d.error) { errEl.textContent = d.error; return; }
-                registerCustomCategories([d.category]);
-                close();
-                if (onCreated) onCreated(name);
-            })
+            .then(d => { if (d.error) { errEl.textContent = d.error; return; } refreshThen(); })
             .catch(() => { errEl.textContent = 'Could not create the category.'; });
     });
 
     renderIcons();
     renderPreview();
     setTimeout(() => nameInput.focus(), 30);
+}
+
+// Open the dialog pre-filled to EDIT a category (name / color / icon / keywords).
+// Works for any category — built-in or custom. `onSaved(newName)` runs after save.
+export function openEditCategoryDialog(name, onSaved) {
+    const c = getCategoryEntry(name);
+    if (!c) return;
+    const p = { name: c.name, color: c.fg, icon: c.icon, keywords: c.keywords || [] };
+    openNewCategoryDialog(onSaved, { edit: p, prefill: p });
+}
+
+// Delete a category (its transactions move to "other"). `onDeleted()` runs after a
+// successful delete. Confirms first — it's destructive.
+export function deleteCategory(name, onDeleted) {
+    if (!window.confirm(`Delete “${name}”? Its transactions will move to “other”.`)) return;
+    fetch('/api/custom-categories/' + encodeURIComponent(name), { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) { window.alert(d.error); return; }
+            unregisterCategory(name);
+            loadCustomCategories().then(() => { if (onDeleted) onDeleted(name); });
+        })
+        .catch(() => window.alert('Could not delete the category.'));
 }
 
 // Same light-tint helper as constants (kept local to avoid an export cycle).
