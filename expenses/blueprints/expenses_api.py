@@ -5,6 +5,7 @@ from collections import defaultdict
 from flask import Blueprint, jsonify, request
 
 from services import (
+    budgets_service,
     categories_service,
     discovery_service,
     overrides_service,
@@ -222,6 +223,29 @@ def set_budget_goal():
     return jsonify({'ok': True, 'budget_goal': goal})
 
 
+@bp.route('/api/settings/category-budgets', methods=['GET', 'POST'])
+def category_budgets():
+    """GET: the {category: monthly_limit} map.
+    POST {category, limit}: set (limit>0) or clear (limit falsy) one category's limit."""
+    if request.method == 'GET':
+        return jsonify({'category_budgets': settings_service.get_category_budgets()})
+
+    body = request.get_json(silent=True) or {}
+    category = (body.get('category') or '').strip()
+    if not category:
+        return jsonify({'error': 'category is required'}), 400
+    if not categories_service.is_known(category):
+        return jsonify({'error': f'unknown category: {category}'}), 400
+    raw = body.get('limit')
+    try:
+        limit = float(raw) if raw not in (None, '') else 0.0
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be a number'}), 400
+    limit = max(0.0, min(limit, 1000000.0))
+    stored = settings_service.set_category_budget(category, limit)
+    return jsonify({'ok': True, 'category': category, 'limit': stored})
+
+
 @bp.route('/api/custom-categories', methods=['GET', 'POST'])
 def custom_categories():
     """GET: the full catalog. POST {name, color, icon, keywords?}: create a category."""
@@ -364,13 +388,19 @@ def current_month_details(month=None):
         day = tx["date"].strftime("%Y-%m-%d")
         daily_spending[day] += tx["amount"]
 
+    # Per-category budget pacing for this month (empty when no budgets are set).
+    budgets = budgets_service.build_budget_pacing(
+        selected_month, dict(current_month_data), settings_service.get_category_budgets()
+    )
+
     return jsonify({
         'month': selected_month,
         'category_totals': dict(current_month_data),
         'category_transactions': dict(category_transactions),
         'daily_spending': dict(daily_spending),
         'total_transactions': len(current_month_transactions),
-        'available_months': sorted(monthly_sums.keys(), reverse=True)
+        'available_months': sorted(monthly_sums.keys(), reverse=True),
+        'budgets': budgets,
     })
 
 
@@ -651,6 +681,7 @@ def recommendations():
         'monthly_sums': monthly_sums,
         'recent_txs': recent_txs,
         'recurring': recurring_service.detect_recurring(all_expenses),
+        'category_budgets': settings_service.get_category_budgets(),
         'goal': settings_service.get('budget_goal'),
     })
     return jsonify(result)

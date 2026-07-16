@@ -15,7 +15,7 @@ import {
 import { handleSort, loadMoreTransactions, toggleChart } from './transactions.js';
 import { initOverrideDelegation } from './overrides.js';
 import { openNewCategoryDialog, openEditCategoryDialog, deleteCategory } from './categories.js';
-import { setDailyMode } from './charts_monthly.js';
+import { setDailyMode, setBudget } from './charts_monthly.js';
 import { toggleTheme, initTheme } from './theme.js';
 import { toggleSidebar, initSidebar } from './sidebar.js';
 import { initOnboarding } from './onboarding.js';
@@ -48,7 +48,7 @@ window.App = {
     clearSelection, onPanelFilterChange, setPanelSort,
     showCategoryDetails, showDayDetails, toggleTxSelection, calStepMonth,
     handleSort, loadMoreTransactions, toggleChart,
-    setDailyMode, toggleGoalEdit,
+    setDailyMode, setBudget, toggleGoalEdit,
     toggleTheme, toggleSidebar,
     // No tx to move when opened from the breakdown; just refresh so the new category shows.
     openNewCategoryDialog: () => openNewCategoryDialog(() => loadAllData()),

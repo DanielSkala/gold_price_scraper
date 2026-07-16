@@ -362,6 +362,37 @@ def _clean_name(raw):
     return s.title() if s.isupper() or s.islower() else s
 
 
+def _analyse_category_budgets(avg_cat, budgets):
+    """Flag categories whose recent (3-month avg) spend runs over a user-set budget.
+
+    Uses the same timeframe as the other analysers (avg over the recent window) so
+    it's a stable "you consistently exceed this budget" signal, complementary to the
+    live in-month pacing shown on the monthly cards."""
+    recs = []
+    for cat, limit in (budgets or {}).items():
+        if not limit or limit <= 0:
+            continue
+        spent = avg_cat.get(cat, 0.0)
+        if spent <= 0 or spent <= limit:
+            continue
+        over = spent - limit
+        if over < 5:   # ignore trivial overruns
+            continue
+        label = _pretty(cat)
+        pct = over / limit * 100
+        recs.append(_rec(
+            f"budget_{cat.replace(' ', '_')}",
+            f"You're over budget on {label}",
+            f"{label.capitalize()} averages ~€{spent:.0f}/mo — about €{over:.0f} over your "
+            f"€{limit:.0f} budget ({pct:.0f}% above). Trimming it back to plan frees €{over:.0f}/mo.",
+            over,
+            cat, "budget",
+            severity="alert" if pct >= 40 else "watch",
+            assumption="Compared to the monthly budget you set for this category.",
+        ))
+    return recs
+
+
 def _goal_analysis(avg_cat, monthly_total, goal, recs):
     """Produce the headline goal recommendation: which changes close the gap to goal."""
     gap = monthly_total - goal
@@ -413,6 +444,7 @@ def build_recommendations(analysis_input):
     monthly_sums = analysis_input.get("monthly_sums", {})
     recent_txs = analysis_input.get("recent_txs", [])
     recurring = analysis_input.get("recurring", {})
+    category_budgets = analysis_input.get("category_budgets", {})
     goal = float(analysis_input.get("goal", 0) or 0)
 
     months = _recent_months(monthly_sums, n=3)
@@ -426,12 +458,14 @@ def build_recommendations(analysis_input):
     recs += _analyse_transport(avg_cat, recent_txs)
     recs += _analyse_vs_benchmarks(avg_cat)
     recs += _analyse_subscriptions(recurring)
+    # User-set per-category budgets (highest-signal: the user told us the target).
+    recs += _analyse_category_budgets(avg_cat, category_budgets)
     # Generic, data-driven analysers (work for ANY category, now and in 30 years).
     recs += _analyse_category_trends(monthly_sums, months, avg_cat)
 
     # Avoid piling multiple recs on the same category — keep the most actionable one.
     # Priority by kind, then by saving.
-    kind_pri = {"swap": 0, "benchmark": 1, "trend": 2, "subscription": 0, "top": 3, "goal": 0}
+    kind_pri = {"budget": -1, "swap": 0, "benchmark": 1, "trend": 2, "subscription": 0, "top": 3, "goal": 0}
     per_cat_best = {}
     passthrough = []
     for r in recs:

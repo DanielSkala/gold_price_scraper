@@ -1019,6 +1019,63 @@
         .cat-card-btn:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
         .cat-card-btn:active { transform: scale(0.9); }
         .cat-card-del:hover { background: var(--neg); color: #fff; }
+        /* Budget target button: filled/primary when a budget is set on this category. */
+        .cat-card-btn.has-budget { background: var(--primary); color: #fff; opacity: 1; }
+        .cat-card-btn.has-budget:hover { background: var(--primary-hover); color: #fff; }
+
+        /* Per-category budget pacing block inside a category card. */
+        .cat-bud-limit { font-size: 0.85rem; color: var(--text-3); font-family: var(--font-serif); }
+        .cat-bud { margin-top: 9px; }
+        .cat-bud-track {
+            position: relative;
+            height: 6px; border-radius: 999px;
+            background: color-mix(in srgb, var(--text) 8%, transparent);
+        }
+        .cat-bud-fill {
+            position: absolute; left: 0; top: 0; bottom: 0;
+            border-radius: 999px;
+            transition: width 0.5s var(--ease-out);
+        }
+        /* When spend exceeds the limit the bar fills fully and gets a faint stripe. */
+        .cat-bud-fill.is-over {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.28) 4px, rgba(255,255,255,0.28) 8px);
+        }
+        /* Ideal-pace tick: where you "should" be today (current month only). Sits ABOVE
+           the fill's overflow clip so it's always visible. */
+        .cat-bud-track .cat-bud-tick {
+            position: absolute; top: -2px; bottom: -2px; width: 2px;
+            background: var(--text); opacity: 0.55; border-radius: 1px;
+            transform: translateX(-1px); z-index: 2;
+        }
+        .cat-bud-note { margin-top: 5px; font-size: 0.72rem; font-weight: 600; }
+
+        /* Inline budget editor (replaces the browser prompt) — lives in the card. */
+        .cat-bud-area { min-height: 0; }
+        .cat-bud-edit {
+            display: flex; align-items: center; gap: 5px; margin-top: 9px;
+        }
+        .cat-bud-edit-cur { font-size: 0.85rem; color: var(--text-3); font-family: var(--font-serif); }
+        .cat-bud-input {
+            flex: 1; min-width: 0; width: 100%;
+            padding: 5px 8px; font-size: 0.85rem;
+            border: 1px solid var(--border); border-radius: 7px;
+            background: var(--surface); color: var(--text);
+            font-family: var(--font-sans);
+        }
+        .cat-bud-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-tint); }
+        .cat-bud-edit button {
+            flex: 0 0 auto; width: 26px; height: 26px; border-radius: 7px;
+            border: none; cursor: pointer; font-size: 0.72rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: background 0.12s ease, color 0.12s ease, transform 0.1s var(--ease-out);
+        }
+        .cat-bud-edit button:active { transform: scale(0.9); }
+        .cat-bud-ok { background: var(--primary); color: #fff; }
+        .cat-bud-ok:hover { background: var(--primary-hover); }
+        .cat-bud-cancel { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); }
+        .cat-bud-cancel:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
+        .cat-bud-remove { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); }
+        .cat-bud-remove:hover { background: var(--neg); color: #fff; }
 
         /* "+ New category" tile in the Spending-by-category grid. */
         .add-category-tile {

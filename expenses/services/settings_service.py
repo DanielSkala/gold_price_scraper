@@ -10,6 +10,9 @@ _cache = None
 
 DEFAULTS = {
     'budget_goal': 1250,
+    # Optional per-category monthly spending limits: {category_name: euros}.
+    # Absent / not-set categories simply have no budget (feature is opt-in).
+    'category_budgets': {},
 }
 
 
@@ -50,3 +53,28 @@ def set_value(key, value):
         data[key] = value
         _save()
     return value
+
+
+def get_category_budgets():
+    """The {category: monthly_limit} map (read-only copy)."""
+    return dict(_load().get('category_budgets') or {})
+
+
+def set_category_budget(category, limit):
+    """Set or clear one category's monthly limit. Pass a falsy/0 limit to remove it
+    (a category with no entry simply isn't budgeted). Returns the stored value or None."""
+    category = (category or '').strip()
+    if not category:
+        return None
+    with _lock:
+        data = _load()
+        budgets = dict(data.get('category_budgets') or {})
+        if limit and limit > 0:
+            budgets[category] = round(float(limit), 2)
+            stored = budgets[category]
+        else:
+            budgets.pop(category, None)
+            stored = None
+        data['category_budgets'] = budgets
+        _save()
+    return stored

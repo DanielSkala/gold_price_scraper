@@ -3,6 +3,7 @@ import { getCategoryColor, getCategoryIcon, isEditableCategory, isDeletableCateg
 import { renderMonthMemories } from './memories.js';
 import { showCategoryDetails, showDayDetails } from './panel.js';
 import { renderMonthlyTransactionsTable } from './transactions.js';
+import { loadMonthDetails } from './loading.js';
 
 // ── Monthly Detail Charts ──────────────────────
 export function renderMonthlyDetailCharts() {
@@ -350,11 +351,121 @@ function escapeHtmlM(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+function escAttr(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Open an inline budget editor INSIDE the category card (no browser popup). Replaces
+// the card's budget area with a small "€ [input] ✓ ✕" form (+ Remove when a budget
+// already exists). Commits persist then reload so pacing recomputes everywhere.
+export function setBudget(category) {
+    const card = document.querySelector(`.cat-breakdown-card[data-cat="${cssEscape(category)}"]`);
+    if (!card) return;
+    const area = card.querySelector('.cat-bud-area');
+    if (!area) return;
+    // Toggle: clicking the icon again while the editor is open closes it (restoring
+    // the previous state) without saving.
+    if (area.querySelector('.cat-bud-edit')) {
+        area.innerHTML = area.dataset.prev || '';
+        delete area.dataset.prev;
+        return;
+    }
+
+    const current = state.currentMonthDetails?.budgets?.items?.[category]?.limit;
+    const hasBudget = current != null;
+
+    area.dataset.prev = area.innerHTML;   // stash so Cancel can restore instantly
+    area.innerHTML = `
+        <form class="cat-bud-edit" onclick="event.stopPropagation();">
+            <span class="cat-bud-edit-cur">€</span>
+            <input type="number" class="cat-bud-input" min="0" step="10" inputmode="numeric"
+                   placeholder="monthly limit" value="${hasBudget ? Math.round(current) : ''}">
+            <button type="submit" class="cat-bud-ok" title="Save budget"><i class="fas fa-check"></i></button>
+            <button type="button" class="cat-bud-cancel" title="Cancel"><i class="fas fa-xmark"></i></button>
+            ${hasBudget ? `<button type="button" class="cat-bud-remove" title="Remove budget"><i class="fas fa-trash"></i></button>` : ''}
+        </form>
+    `;
+
+    const form = area.querySelector('.cat-bud-edit');
+    const input = area.querySelector('.cat-bud-input');
+    input.focus();
+    input.select();
+
+    const restore = () => { area.innerHTML = area.dataset.prev || ''; delete area.dataset.prev; };
+    const commit = (limit) => {
+        fetch('/api/settings/category-budgets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, limit }),
+        })
+            .then(r => r.json())
+            .then(d => { if (!d.error) loadMonthDetails(state.selectedMonth); else restore(); })
+            .catch(restore);
+    };
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const v = Math.max(0, parseFloat(input.value) || 0);
+        if (!v) { restore(); return; }          // empty/0 → no change (use Remove to clear)
+        commit(v);
+    });
+    form.querySelector('.cat-bud-cancel').addEventListener('click', restore);
+    const removeBtn = form.querySelector('.cat-bud-remove');
+    if (removeBtn) removeBtn.addEventListener('click', () => commit(0));   // 0 clears the budget
+    // Esc cancels.
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); restore(); } });
+}
+
+// Minimal CSS.escape fallback (category names are simple, but guard quotes/spaces).
+function cssEscape(s) {
+    return window.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\\]]/g, '\\$&');
+}
+
+// Pacing → status color + label. Statuses come from budgets_service.
+const BUDGET_STATUS = {
+    under:    { color: 'var(--pos)',     label: 'under budget' },
+    on_track: { color: 'var(--pos)',     label: 'on track' },
+    at_risk:  { color: 'var(--caution)', label: 'at risk' },
+    over:     { color: 'var(--neg)',     label: 'over budget' },
+};
+
+// The budget block shown inside a category card when a limit is set: a slim spend
+// bar with a vertical "ideal pace" tick, plus a one-line status. Reuses the pacing
+// numbers computed server-side (state.currentMonthDetails.budgets.items[cat]).
+function budgetBlockHtml(b, isCurrent) {
+    const st = BUDGET_STATUS[b.status] || BUDGET_STATUS.on_track;
+    const fillPct = Math.min(100, b.pct);                 // bar never overflows its track
+    const overfill = b.pct > 100;                          // but flag when spend exceeds limit
+    // Ideal-pace tick only for an in-progress month (a past month has no "pace").
+    const tick = (isCurrent && b.ideal_pct != null)
+        ? `<span class="cat-bud-tick" style="left:${Math.min(100, b.ideal_pct)}%" title="Ideal pace today: ${Math.round(b.ideal_pct)}%"></span>`
+        : '';
+    // Status line: projection for the current month, over/remaining for a past one.
+    let note;
+    if (isCurrent && b.projected != null) {
+        note = b.status === 'over' || b.status === 'at_risk'
+            ? `proj. €${Math.round(b.projected)} · ${b.over > 0 ? `€${Math.round(b.over)} over` : st.label}`
+            : `${st.label} · pace ${Math.round(b.ideal_pct)}%`;
+    } else {
+        note = b.over > 0 ? `€${Math.round(b.over)} over` : `€${Math.round(b.remaining)} left`;
+    }
+    return `
+        <div class="cat-bud">
+            <div class="cat-bud-track">
+                <span class="cat-bud-fill${overfill ? ' is-over' : ''}" style="width:${fillPct}%; background:${st.color};"></span>
+                ${tick}
+            </div>
+            <div class="cat-bud-note" style="color:${st.color};">${note}</div>
+        </div>
+    `;
+}
+
 export function renderCategoryBreakdown() {
     if (!state.currentMonthDetails) return;
     const container = document.getElementById('categoryBreakdown');
     const data = Object.entries(state.currentMonthDetails.category_totals).filter(([_, a]) => a > 0).sort((a, b) => b[1] - a[1]);
     const total = data.reduce((s, [_, a]) => s + a, 0);
+    const budgets = state.currentMonthDetails.budgets || { items: {}, is_current: false };
 
     container.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px;">
@@ -363,6 +474,7 @@ export function renderCategoryBreakdown() {
                 const txCount = state.currentMonthDetails.category_transactions[cat]?.length || 0;
                 const color = getCategoryColor(cat);
                 const safe = cat.replace(/'/g, "\\'");
+                const bud = budgets.items[cat];
                 // Every category can be edited; only 'other' can't be deleted or renamed.
                 const editBtn = isEditableCategory(cat) ? `
                         <button class="cat-card-btn" title="Edit category"
@@ -370,9 +482,18 @@ export function renderCategoryBreakdown() {
                 const delBtn = isDeletableCategory(cat) ? `
                         <button class="cat-card-btn cat-card-del" title="Delete category"
                             onclick="event.stopPropagation(); App.deleteCategory('${safe}')"><i class="fas fa-trash"></i></button>` : '';
-                const actions = (editBtn || delBtn) ? `<div class="cat-card-actions">${editBtn}${delBtn}</div>` : '';
+                // Subtle, opt-in: a target icon (filled when a budget exists) to set/adjust it.
+                const budBtn = `
+                        <button class="cat-card-btn${bud ? ' has-budget' : ''}" title="${bud ? 'Adjust budget' : 'Set a monthly budget'}"
+                            onclick="event.stopPropagation(); App.setBudget('${safe}')"><i class="fas fa-bullseye"></i></button>`;
+                const actions = `<div class="cat-card-actions">${budBtn}${editBtn}${delBtn}</div>`;
+                // Amount line: "spent / limit" when budgeted, else just the spend.
+                const amountLine = bud
+                    ? `€${amount.toFixed(2)} <span class="cat-bud-limit">/ €${Math.round(bud.limit)}</span>`
+                    : `€${amount.toFixed(2)}`;
+                const budgetBlock = bud ? budgetBlockHtml(bud, budgets.is_current) : '';
                 return `
-                    <div class="cat-breakdown-card" onclick="App.showCategoryDetails('${safe}')"
+                    <div class="cat-breakdown-card" data-cat="${escAttr(cat)}" onclick="App.showCategoryDetails('${safe}')"
                         style="border-left-color:${color};">
                         ${actions}
                         <div style="font-weight: 600; font-size: 0.85rem; text-transform: capitalize; margin-bottom: 4px; display:flex; align-items:center; gap:7px;">
@@ -380,12 +501,13 @@ export function renderCategoryBreakdown() {
                             ${cat.replace('_', ' ').replace('-', ' ')}
                         </div>
                         <div style="font-family: var(--font-serif); font-size: 1.35rem; color: var(--text); margin-bottom: 4px;">
-                            €${amount.toFixed(2)}
+                            ${amountLine}
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-3);">
                             <span>${pct}%</span>
                             <span>${txCount} txns</span>
                         </div>
+                        <div class="cat-bud-area">${budgetBlock}</div>
                     </div>
                 `;
             }).join('')}
