@@ -14,6 +14,7 @@ from services import (
     recurring_service,
     reports_service,
     settings_service,
+    tidy_service,
 )
 from services.expenses_service import (
     compute_outlier_indices,
@@ -618,6 +619,78 @@ def discover_categories():
                 'category': tx['category'],
             })
     return jsonify(discovery_service.discover_categories(other_txs))
+
+
+@bp.route('/api/tidy-other')
+def tidy_other():
+    """Ranked queue of merchants still in 'other', for the playful tidy-up flow.
+    Each item is enriched with a few sample photos from days it was purchased.
+    Query: ?order=importance|count|total (default importance), ?limit=N."""
+    order = request.args.get('order', 'importance')
+    try:
+        limit = max(1, min(int(request.args.get('limit', '40') or 40), 100))
+    except ValueError:
+        limit = 40
+
+    all_expenses = get_expenses(exclude_outliers=_should_exclude_outliers())
+    other_txs = [
+        {
+            'date': tx['date'].strftime('%Y-%m-%d'),
+            'merchant': tx['merchant'],
+            'amount': tx['amount'],
+        }
+        for tx in all_expenses if tx['category'] == 'other'
+    ]
+    result = tidy_service.build_tidy_queue(other_txs, limit=limit, order=order)
+
+    # Enrich each item with up to a few photos from its sample days (best-effort;
+    # Photos DB may be unavailable, in which case items simply have no photos).
+    for item in result['items']:
+        photos = []
+        for day in item.get('sample_days', []):
+            try:
+                curated = photos_lib.curate(photos_lib.photos_for_day(day), target=1)
+            except Exception:
+                curated = []
+            if curated:
+                photos.append({**curated[0], 'date': day})
+            if len(photos) >= 3:
+                break
+        item['photos'] = photos
+
+    return jsonify(result)
+
+
+@bp.route('/api/tidy-file', methods=['POST'])
+def tidy_file():
+    """File an entire brand-level merchant group (from the tidy queue) into a category.
+
+    Body: {merchant: <normalized brand key>, category}. Because a brand group can span
+    several exact merchant spellings (e.g. 'LIDL 164' + 'LIDL 042'), this learns a
+    merchant rule for EVERY distinct raw spelling in that group, so the whole card
+    moves together. Returns the number of transactions affected."""
+    body = request.get_json(silent=True) or {}
+    norm = (body.get('merchant') or '').strip()
+    category = (body.get('category') or '').strip()
+    if not norm or not category:
+        return jsonify({'error': 'merchant and category are required'}), 400
+    if not categories_service.is_known(category):
+        return jsonify({'error': f'unknown category: {category}'}), 400
+
+    # Collect every distinct raw merchant string that normalizes to this brand.
+    all_expenses = get_expenses_data()
+    raw_merchants = {
+        tx['merchant'] for tx in all_expenses
+        if overrides_service.normalize_merchant(tx['merchant']) == norm
+    }
+    for m in raw_merchants:
+        overrides_service.set_merchant_rule(m, category)
+
+    affected = sum(
+        1 for tx in all_expenses
+        if overrides_service.normalize_merchant(tx['merchant']) == norm
+    )
+    return jsonify({'ok': True, 'category': category, 'affected': affected, 'merchants': len(raw_merchants)})
 
 
 @bp.route('/api/transactions-for-merchants', methods=['POST'])

@@ -195,6 +195,9 @@
                 <div class="ov-section-head">
                     <h3 class="ov-section-title">Suggested categories</h3>
                     <span class="ov-section-sub" id="discoverySub"></span>
+                    <button class="tidy-launch" id="tidyLaunchBtn" onclick="App.startTidy()">
+                        <i class="fas fa-wand-magic-sparkles"></i> Tidy up “Other”
+                    </button>
                 </div>
                 <div id="discoveryBody"></div>
             </section>
@@ -403,6 +406,22 @@
                     </a>
                     <button onclick="App.closePhotoLightbox()"><i class="fas fa-times"></i></button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Tidy-up "Other": a playful, card-by-card flow to file the biggest
+             uncategorized merchants. Populated by tidy.js. -->
+        <div class="tidy-overlay" id="tidyOverlay" onclick="App.closeTidy(event)">
+            <div class="tidy-modal" id="tidyModal" onclick="event.stopPropagation()">
+                <div class="tidy-head">
+                    <div class="tidy-progress"><span class="tidy-progress-fill" id="tidyProgressFill"></span></div>
+                    <div class="tidy-head-row">
+                        <span class="tidy-step" id="tidyStep"></span>
+                        <span class="tidy-moved" id="tidyMoved"></span>
+                        <button class="tidy-close" onclick="App.closeTidy()" title="Close"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="tidy-body" id="tidyBody"></div>
             </div>
         </div>
     </div>
