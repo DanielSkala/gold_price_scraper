@@ -10,6 +10,15 @@ import { openPanel } from './panel.js';
 const euro = (n) => `€${Math.round(n).toLocaleString()}`;
 const euro2 = (n) => `€${Number(n).toFixed(2)}`;
 
+// A distinct hue PER MERCHANT for the meter/chips. Recurring charges are usually all
+// in one category (e.g. "Subscriptions"), so the category color would make every slice
+// identical — these give each charge its own readable colour instead.
+const REC_PALETTE = [
+    '#2563eb', '#0f766e', '#b45309', '#7c3aed', '#be123c', '#0891b2',
+    '#65a30d', '#c2410c', '#4f46e5', '#db2777', '#0369a1', '#a16207',
+];
+const recColor = (i) => REC_PALETTE[i % REC_PALETTE.length];
+
 function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -73,32 +82,36 @@ export function renderRecurring() {
 // meter (each recurring charge a category-colored slice) + a live readout that
 // defaults to the next upcoming charge and follows whichever slice/chip you hover.
 function renderBand(body, items, committed) {
-    // Active first (by soonest next charge) so the meter reads left→right as "sooner".
+    // Largest → smallest by monthly cost, so the meter and chips read biggest-first.
+    // (Zombies still sink to the end since they aren't committed spend.)
     const active = items.filter(i => !i.is_zombie)
-        .sort((a, b) => a.predicted_next.localeCompare(b.predicted_next));
-    const zombies = items.filter(i => i.is_zombie);
+        .sort((a, b) => b.monthly_cost - a.monthly_cost);
+    const zombies = items.filter(i => i.is_zombie)
+        .sort((a, b) => b.monthly_cost - a.monthly_cost);
     const ordered = [...active, ...zombies];
+    // Give each item a distinct colour by its position in the sorted list.
+    ordered.forEach((it, i) => { it._color = recColor(i); });
 
     // Meter proportions from monthly cost across ACTIVE items (zombies aren't committed).
     const meterTotal = active.reduce((s, i) => s + i.monthly_cost, 0) || 1;
-    const segs = active.map((it, i) => {
+    const segs = active.map((it) => {
         const pct = (it.monthly_cost / meterTotal) * 100;
-        return `<span class="rec-seg" data-idx="${ordered.indexOf(it)}" style="flex:${pct.toFixed(3)} 1 0;background:${it.color || '#57534e'}"
+        return `<span class="rec-seg" data-idx="${ordered.indexOf(it)}" style="flex:${pct.toFixed(3)} 1 0;background:${it._color}"
                      title="${esc(cleanName(it.display))} · ${euro(it.monthly_cost)}/mo"></span>`;
     }).join('');
 
-    const chips = ordered.map((it, i) => {
+    const chips = ordered.map((it) => {
         const idx = ordered.indexOf(it);
         const flagDot = it.price_change_pct >= 0.10 ? '<span class="rec-chip-up" title="price rose">▲</span>'
             : it.is_zombie ? '<span class="rec-chip-ghost" title="possibly inactive">•</span>' : '';
         return `<button class="rec-chip${it.is_zombie ? ' is-zombie' : ''}" data-idx="${idx}" type="button">
-                    <span class="rec-chip-dot" style="background:${it.color || '#57534e'}"></span>
+                    <span class="rec-chip-dot" style="background:${it._color}"></span>
                     <span class="rec-chip-name">${esc(cleanName(it.display))}</span>
                     <span class="rec-chip-amt">${euro(it.monthly_cost)}</span>${flagDot}
                 </button>`;
     }).join('');
 
-    // The soonest upcoming active charge is the default readout.
+    // Default readout: the largest active charge (first in the sorted list).
     const defaultIdx = active.length ? ordered.indexOf(active[0]) : 0;
 
     body.innerHTML = `
@@ -138,7 +151,7 @@ function renderBand(body, items, committed) {
     [...segEls, ...chipEls].forEach(el => {
         el.addEventListener('click', () => {
             const it = ordered[+el.dataset.idx];
-            openChargeHistory(it.display, it.color || '#57534e');
+            openChargeHistory(it.display, it._color || '#57534e');
         });
     });
 }
@@ -170,7 +183,7 @@ function readoutHtml(it, pinned) {
     }
 
     return `
-        <span class="rec-ro-dot" style="background:${it.color || '#57534e'}"><i class="fas ${it.icon || 'fa-rotate'}"></i></span>
+        <span class="rec-ro-dot" style="background:${it._color || it.color || '#57534e'}"><i class="fas ${it.icon || 'fa-rotate'}"></i></span>
         <span class="rec-ro-body">
             <span class="rec-ro-title">
                 <b>${esc(name)}</b> ${lead} ${hike}

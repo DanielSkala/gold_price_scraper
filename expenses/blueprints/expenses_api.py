@@ -705,6 +705,25 @@ def tidy_file():
     return jsonify({'ok': True, 'category': category, 'affected': affected, 'merchants': len(raw_merchants)})
 
 
+@bp.route('/api/tidy-unfile', methods=['POST'])
+def tidy_unfile():
+    """Undo a tidy filing: clear the merchant rules for a brand group so its
+    transactions revert to automatic categorisation (back into 'other' for items
+    that only landed elsewhere via this rule). Body: {merchant: <normalized brand key>}."""
+    body = request.get_json(silent=True) or {}
+    norm = (body.get('merchant') or '').strip()
+    if not norm:
+        return jsonify({'error': 'merchant is required'}), 400
+    all_expenses = get_expenses_data()
+    raw_merchants = {
+        tx['merchant'] for tx in all_expenses
+        if overrides_service.normalize_merchant(tx['merchant']) == norm
+    }
+    for m in raw_merchants:
+        overrides_service.set_merchant_rule(m, None)   # falsy clears the rule
+    return jsonify({'ok': True, 'merchants': len(raw_merchants)})
+
+
 @bp.route('/api/transactions-for-merchants', methods=['POST'])
 def transactions_for_merchants():
     """Return all transactions belonging to a set of merchant names (normalised

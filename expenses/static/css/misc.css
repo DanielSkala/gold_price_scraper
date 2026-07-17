@@ -96,7 +96,7 @@
             align-items: center;
             gap: 9px;
             box-shadow: 0 10px 30px rgba(28,25,23,0.28);
-            z-index: 4000;
+            z-index: 6000;   /* above the tidy overlay (5000) so it stays readable there */
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);

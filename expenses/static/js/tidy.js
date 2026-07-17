@@ -50,6 +50,7 @@ export function startTidy() {
     keyHandler = (e) => {
         if (e.key === 'Escape') closeTidy();
         else if (e.key === 'ArrowRight') skipCurrent();
+        else if (e.key === 'ArrowLeft') goBack();
     };
     document.addEventListener('keydown', keyHandler);
 
@@ -98,6 +99,37 @@ function next() {
 
 function skipCurrent() {
     if (idx < queue.length) next();
+}
+
+// Go back to the previous item. If that item was already filed, un-file it first
+// (clear its rule so it returns to 'other') and roll back the counters — so the
+// user can genuinely reconsider it, not just look at it.
+function goBack() {
+    if (idx <= 0) return;
+    idx -= 1;
+    const it = queue[idx];
+    if (it && it.filedCategory) {
+        const undoneCat = it.filedCategory;
+        const undoneCount = it.filedCount || it.count;
+        it.filedCategory = null;
+        movedItems = Math.max(0, movedItems - 1);
+        movedTxns = Math.max(0, movedTxns - undoneCount);
+        dirty = true;
+        fetch('/api/tidy-unfile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ merchant: it.merchant }),
+        }).catch(() => {});
+        showToast(`Put ${_clean(it.display)} back — reconsider it`);
+    }
+    updateHead();
+    renderCard();
+}
+
+// Tidy a raw merchant string for a short toast.
+function _clean(raw) {
+    let s = String(raw).split('*').pop().trim().replace(/^WWW\./i, '');
+    return s.length > 28 ? s.slice(0, 27) + '…' : s;
 }
 
 function renderCard() {
@@ -155,7 +187,8 @@ function renderCard() {
             </div>
             ${photoToggle}
             <div class="tidy-actions">
-                <button class="tidy-skip" id="tidySkipBtn"><i class="fas fa-forward"></i> Skip for now</button>
+                <button class="tidy-back" id="tidyBackBtn" ${idx === 0 ? 'disabled' : ''}><i class="fas fa-arrow-left"></i> Back</button>
+                <button class="tidy-skip" id="tidySkipBtn">Skip for now <i class="fas fa-forward"></i></button>
             </div>
         </div>
     `;
@@ -170,6 +203,8 @@ function renderCard() {
             }
         });
     });
+    const backBtn = body.querySelector('#tidyBackBtn');
+    if (backBtn) backBtn.addEventListener('click', goBack);
     body.querySelector('#tidySkipBtn').addEventListener('click', skipCurrent);
     const photoBtn = body.querySelector('#tidyPhotoToggle');
     if (photoBtn) {
@@ -206,6 +241,9 @@ function fileCurrent(category) {
         .then(r => r.json())
         .then(data => {
             const n = data.affected || it.count;
+            // Remember what we did so Back can undo it.
+            it.filedCategory = category;
+            it.filedCount = n;
             movedItems += 1;
             movedTxns += n;
             dirty = true;

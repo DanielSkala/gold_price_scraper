@@ -1233,15 +1233,17 @@
             color: #fff; font-size: 0.66rem;
         }
         .tidy-chip-new { border-style: dashed; color: var(--primary); }
-        .tidy-actions { margin-top: 18px; display: flex; justify-content: center; }
-        .tidy-skip {
+        .tidy-actions { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; }
+        .tidy-back, .tidy-skip {
             border: none; background: none; cursor: pointer;
             color: var(--text-3); font-family: var(--font-sans); font-size: 0.84rem; font-weight: 600;
             padding: 8px 14px; border-radius: var(--radius-pill);
+            display: inline-flex; align-items: center; gap: 6px;
             transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
         }
-        .tidy-skip:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
-        .tidy-skip i { margin-right: 5px; font-size: 0.76rem; }
+        .tidy-back:hover:not(:disabled), .tidy-skip:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+        .tidy-back:disabled { opacity: 0.35; cursor: default; }
+        .tidy-back i, .tidy-skip i { font-size: 0.76rem; }
 
         /* Empty / summary state. */
         .tidy-done-emoji { font-size: 3rem; margin-bottom: 10px; }
