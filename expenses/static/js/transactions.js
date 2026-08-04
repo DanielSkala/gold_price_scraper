@@ -43,7 +43,16 @@ export function renderTransactionsTable(filteredTransactions = null) {
     }
 
     try {
-        const baseData = filteredTransactions || state.transactions;
+        // Apply the active search term (kept in state so it survives sorts/refreshes)
+        // unless an explicit list was passed in (e.g. the "load more" path).
+        let baseData = filteredTransactions;
+        if (baseData == null) {
+            const term = state.searchTerm;
+            baseData = term
+                ? state.transactions.filter(tx =>
+                    tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term))
+                : state.transactions;
+        }
         const sortedData = sortTransactions(baseData, state.sortColumn, state.sortDirection);
         state.currentFilteredTransactions = sortedData;
 
@@ -100,11 +109,9 @@ export function renderTransactionsTable(filteredTransactions = null) {
 
 export function loadMoreTransactions() {
     state.transactionsDisplayed += 50;
-    if (state.currentFilteredTransactions) {
-        renderTransactionsTable(state.currentFilteredTransactions === state.transactions ? null : state.currentFilteredTransactions);
-    } else {
-        renderTransactionsTable();
-    }
+    // Re-render with no explicit list so the active search term (state.searchTerm)
+    // is reapplied consistently — showing more of the SAME filtered set.
+    renderTransactionsTable();
 }
 
 export function toggleChart(type, evt) {
@@ -118,7 +125,14 @@ export function renderMonthlyTransactionsTable(filteredTransactions = null) {
     if (!state.currentMonthDetails) return;
 
     let monthlyTxs = Object.values(state.currentMonthDetails.category_transactions || {}).flat();
-    let showing = filteredTransactions || monthlyTxs;
+    let showing = filteredTransactions;
+    if (showing == null) {
+        const term = state.monthlySearchTerm;
+        showing = term
+            ? monthlyTxs.filter(tx =>
+                tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term))
+            : monthlyTxs;
+    }
     showing = sortTransactions(showing, state.sortColumn, state.sortDirection);
 
     const arrow = (col) => state.sortColumn === col ? (state.sortDirection === 'asc' ? '&#9650;' : '&#9660;') : '';

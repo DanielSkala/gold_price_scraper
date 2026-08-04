@@ -55,7 +55,11 @@ export function loadAllData() {
         state.transactions = trans;
         state.trends = trendData;
         state.currentMonthDetails = monthlyDetails;
-        if (!state.selectedMonth) { state.selectedMonth = monthlyDetails.month; }
+        // Reconcile to the month the API actually returned: if our requested month no
+        // longer exists (e.g. a report was deleted), the API falls back to another
+        // month, and the selector/data must agree with it. `month` is absent only when
+        // there's no data at all.
+        if (monthlyDetails && monthlyDetails.month) { state.selectedMonth = monthlyDetails.month; }
         state.outlierData = outliers;
 
         renderStats();
@@ -80,13 +84,18 @@ export function setupMonthSelector() {
     `).join('');
 }
 
+// Monotonic token so a slow response for an earlier month can't clobber a newer
+// selection when the user steps quickly across months.
+let _monthReqSeq = 0;
 export function loadMonthDetails(month) {
     const qs = state.excludeOutliers ? '?exclude_outliers=1' : '';
-    fetch(`/api/current-month-details/${month}${qs}`)
+    const seq = ++_monthReqSeq;
+    fetch(`/api/current-month-details/${encodeURIComponent(month)}${qs}`)
         .then(r => r.json())
         .then(data => {
+            if (seq !== _monthReqSeq) return;   // a newer request superseded this one
             state.currentMonthDetails = data;
-            state.selectedMonth = month;
+            state.selectedMonth = (data && data.month) ? data.month : month;
             renderStats();
             renderMonthlyDetailCharts();
         })

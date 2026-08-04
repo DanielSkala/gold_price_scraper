@@ -1,5 +1,6 @@
 import csv
 import glob
+import math
 import os
 from collections import defaultdict
 from datetime import datetime
@@ -95,7 +96,9 @@ CATEGORIES = {
     "oil partner": ["oil"]
 }
 
-# We may want a fixed order for categories in the final table
+# We may want a fixed order for categories in the final table.
+# NOTE: every category defined in CATEGORIES above must appear here, otherwise it is
+# never seeded into the live catalog and its transactions silently fall into "other".
 CATEGORY_ORDER = [
     "groceries",
     "eating out",
@@ -103,6 +106,7 @@ CATEGORY_ORDER = [
     "car wash",
     "gas stations",
     "parking",
+    "travel",
     "nabytok",
     "oil partner",
     "other",  # We'll add "other" explicitly
@@ -151,11 +155,15 @@ def parse_expenses_from_csv(csv_file: str):
             except ValueError:
                 continue
 
-            # Parse amount (Suma EUR)
+            # Parse amount (Suma EUR). Reject non-finite values: float() happily
+            # accepts "nan"/"inf", and a NaN amount poisons downstream math (e.g. the
+            # weighted photo-mosaic sampler loops forever on a NaN weight).
             amount_str = row[col_amount_eur].strip()
             try:
                 tx_amount = float(amount_str)
             except ValueError:
+                continue
+            if not math.isfinite(tx_amount):
                 continue
 
             merchant_str = row[col_merchant].strip()

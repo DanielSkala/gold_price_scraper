@@ -15,7 +15,14 @@ Public entry point: `build_recommendations(analysis_input)`.
 """
 from collections import defaultdict
 
-from services import savings_knowledge as kb
+from services import categories_service, savings_knowledge as kb
+
+
+def _is_grab_bag(category):
+    """True for the two miscellaneous buckets: the fallback ("nothing has classified this
+    yet") and the real 'other' ("I decided it's miscellaneous"). Neither is a single
+    spending behaviour, so per-category advice about them would be noise."""
+    return str(category).strip().lower() in {categories_service.FALLBACK_CATEGORY, 'other'}
 
 
 def _fact(key):
@@ -194,8 +201,8 @@ def _analyse_category_trends(monthly_sums, recent_months, avg_cat):
         categories.update(monthly_sums[m].keys())
 
     for cat in categories:
-        if cat == 'other':
-            continue  # 'other' isn't a single actionable thing (use category discovery instead)
+        if _is_grab_bag(cat):
+            continue  # not a single actionable thing (use category discovery instead)
         recent_avg = avg_cat.get(cat, 0.0)
         base_avg = sum(monthly_sums[m].get(cat, 0.0) for m in baseline_months) / len(baseline_months)
         if recent_avg < 25 or base_avg <= 0:
@@ -206,8 +213,9 @@ def _analyse_category_trends(monthly_sums, recent_months, avg_cat):
         if growth >= 0.25 and excess >= 15:
             label = _pretty(cat)
             tip, tip_saving = _best_tip(cat, recent_avg)
-            # Saving = the reachable slice of the increase, but at least the tip's estimate.
-            saving = max(excess * 0.5, tip_saving * 0.6)
+            # Saving = the tip's modeled recovery, capped by the actual increase — so we
+            # never claim to save more than the category grew, nor more than the tip supports.
+            saving = min(excess, tip_saving)
             recs.append(_rec(
                 f"trend_{cat}",
                 tip["title"],
@@ -231,10 +239,10 @@ def _analyse_top_categories(avg_cat, goal, existing_ids):
     total = sum(avg_cat.values())
     if total <= goal:
         return recs
-    # Biggest categories first; skip 'other' (not directly actionable) and any that
-    # already have a specific rec.
+    # Biggest categories first; skip the grab-bag buckets (not directly actionable) and
+    # any that already have a specific rec.
     ranked = sorted(
-        ((c, v) for c, v in avg_cat.items() if v > 0 and c != 'other'),
+        ((c, v) for c, v in avg_cat.items() if v > 0 and not _is_grab_bag(c)),
         key=lambda kv: -kv[1],
     )
     for cat, spent in ranked[:2]:
@@ -335,7 +343,10 @@ def _analyse_subscriptions(recurring):
             f"{_clean_name(z['display'])} billed ~€{z['avg_amount']:.2f} on a {z['cadence']} rhythm "
             f"but hasn't appeared since {z['last_seen']}. Make sure it's actually cancelled — "
             f"forgotten subscriptions quietly keep charging.",
-            z["monthly_cost"],
+            # No claimed saving: a charge we haven't seen in 2.5+ cycles isn't current
+            # spend, so we can't count its historical cost toward achievable savings.
+            # It stays visible as an audit alert (subscription kind survives the filter).
+            0.0,
             None, "subscription", "watch",
         ))
 
@@ -374,9 +385,9 @@ def _analyse_category_budgets(avg_cat, budgets):
     for cat, limit in (budgets or {}).items():
         if not limit or limit <= 0:
             continue
-        # 'other' is a grab-bag, not a single actionable lever — no useful lifestyle
-        # advice applies. (The "Tidy up Other" flow handles that bucket instead.)
-        if cat == 'other':
+        # A grab-bag isn't a single actionable lever — no useful lifestyle advice
+        # applies. (The tidy-up flow handles the uncategorized bucket instead.)
+        if _is_grab_bag(cat):
             continue
         spent = avg_cat.get(cat, 0.0)
         if spent <= 0 or spent <= limit:
@@ -387,8 +398,10 @@ def _analyse_category_budgets(avg_cat, budgets):
         label = _pretty(cat)
         pct = over / limit * 100
         tip, tip_saving = _best_tip(cat, spent)
-        # Target the reachable slice of the overrun, but at least what the tip can realistically save.
-        saving = max(over, tip_saving * 0.6)
+        # Reachable saving = what the tip can realistically recover (tip_saving), capped
+        # by the overrun (no point claiming to save more than you're over). Never exceed
+        # tip_saving, so the reported figure matches the disclosed save-fraction assumption.
+        saving = min(over, tip_saving)
         recs.append(_rec(
             f"budget_{cat.replace(' ', '_')}",
             tip["title"],   # the ACTION is the headline, not "you're over budget"

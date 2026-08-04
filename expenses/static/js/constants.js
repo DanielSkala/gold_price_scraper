@@ -1,9 +1,29 @@
+// ── Shared HTML escaping ────────────────────────────────────────────
+// Single source of truth for escaping untrusted text (merchant names from the
+// bank CSV, user-created category names, macOS Photos album/location titles)
+// before it goes into an innerHTML template literal. Prefer this over the many
+// ad-hoc per-file copies that used to drift and leave gaps.
+export function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ── Category catalog (single source of truth, loaded from the backend) ──
 // Every category — built-in or user-created — is data: {name, fg (color), bg (tint),
 // icon, keywords, builtin}. The catalog is fetched from /api/categories at startup
 // (see registerCatalog); until then a small seed keeps the very first paint sensible.
 // Colors are used everywhere (donut slices, trend lines, card borders, badges).
 export const CATEGORY_CATALOG = {};   // catKey → {name, fg, bg, icon, keywords, builtin}
+
+// The fallback bucket: "nothing has classified this yet". Distinct from the real
+// 'other' category, which means "I decided this is miscellaneous" (see FALLBACK_NAME
+// users of isEditableCategory/isDeletableCategory below).
+export const FALLBACK_NAME = 'uncategorized';
+export const isFallbackCategory = (name) => catKey(name) === catKey(FALLBACK_NAME);
 
 const CATEGORY_FALLBACK = { name: 'other', fg: '#57534e', bg: '#f5f5f4', icon: 'fa-tag', builtin: true };
 
@@ -14,7 +34,8 @@ const _SEED = {
     parking:      ['#0369a1', 'fa-square-parking'],  car_wash:     ['#0891b2', 'fa-car'],
     oil_partner:  ['#4d7c0f', 'fa-oil-can'],         eating_out:   ['#c2410c', 'fa-utensils'],
     travel:       ['#b45309', 'fa-plane'],           bolt:         ['#be123c', 'fa-taxi'],
-    nabytok:      ['#7c3aed', 'fa-couch'],           other:        ['#57534e', 'fa-receipt'],
+    nabytok:      ['#7c3aed', 'fa-couch'],           other:        ['#86198f', 'fa-shapes'],
+    uncategorized: ['#78716c', 'fa-circle-question'],
 };
 for (const [k, [color, icon]] of Object.entries(_SEED)) {
     CATEGORY_CATALOG[k] = { name: k.replace(/_/g, ' '), fg: color, bg: tintOf(color), icon, keywords: [], builtin: true };
@@ -41,12 +62,14 @@ export function getCategoryEntry(name) {
     return CATEGORY_CATALOG[catKey(name)] || null;
 }
 
-// Every category is now editable; only 'other' is protected from rename/delete.
+// Every category is editable except the fallback bucket, which is structural: the app
+// always needs somewhere for unclassified transactions to land. The real 'other' IS
+// editable now — it's an ordinary category.
 export function isEditableCategory(name) {
-    return catKey(name) !== 'other';
+    return !isFallbackCategory(name);
 }
 export function isDeletableCategory(name) {
-    return catKey(name) !== 'other' && !!CATEGORY_CATALOG[catKey(name)];
+    return !isFallbackCategory(name) && !!CATEGORY_CATALOG[catKey(name)];
 }
 
 // Drop a category from the client cache (after it's deleted server-side).

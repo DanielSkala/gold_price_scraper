@@ -12,6 +12,7 @@ None of these ever block app startup or affect the other tabs.
 """
 import csv
 import json
+import math
 import os
 import time
 
@@ -103,7 +104,12 @@ def fetch_gold_spot_history(period='2y'):
 
 
 def get_spot_on_date(df, date_str):
-    target = pd.Timestamp(date_str)
+    try:
+        target = pd.Timestamp(date_str)
+    except (ValueError, TypeError):
+        return None
+    if target is None or pd.isna(target):
+        return None
     mask = df.index <= target
     if mask.any():
         return float(df.loc[mask, "gold_eur_per_oz"].iloc[-1])
@@ -182,14 +188,22 @@ def portfolio_payload():
     total_weight = 0
 
     for p in GOLD_PURCHASES:
-        weight = p["weight_g"]
-        cost = p["price_eur"]
-        label = p.get("label", f"{weight}g bar")
+        # Guard against a malformed self-edited gold_purchases.json entry: missing keys
+        # or a zero/negative weight or cost would otherwise KeyError or ZeroDivisionError
+        # and 500 the whole gold tab. Skip such entries instead.
+        try:
+            weight = float(p["weight_g"])
+            cost = float(p["price_eur"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if weight <= 0 or cost <= 0 or not (math.isfinite(weight) and math.isfinite(cost)):
+            continue
+        label = p.get("label", f"{weight:g}g bar")
         value_now = weight * current_spot_g
         gl = value_now - cost
         gl_pct = (gl / cost) * 100
 
-        spot_at_purchase_oz = get_spot_on_date(df, p["date"])
+        spot_at_purchase_oz = get_spot_on_date(df, p.get("date"))
         price_per_oz = (cost / weight) * TROY_OUNCE_GRAMS
         premium_pct = ((price_per_oz / spot_at_purchase_oz) - 1) * 100 if spot_at_purchase_oz else None
 

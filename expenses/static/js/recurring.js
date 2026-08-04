@@ -183,7 +183,7 @@ function readoutHtml(it, pinned) {
     }
 
     return `
-        <span class="rec-ro-dot" style="background:${it._color || it.color || '#57534e'}"><i class="fas ${it.icon || 'fa-rotate'}"></i></span>
+        <span class="rec-ro-dot" style="background:${esc(it._color || it.color || '#57534e')}"><i class="fas ${esc(it.icon || 'fa-rotate')}"></i></span>
         <span class="rec-ro-body">
             <span class="rec-ro-title">
                 <b>${esc(name)}</b> ${lead} ${hike}

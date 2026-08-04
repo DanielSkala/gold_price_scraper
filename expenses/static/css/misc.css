@@ -108,6 +108,8 @@
         }
         .app-toast i { color: #6ee7a8; }
         .app-toast b { font-weight: 600; text-transform: capitalize; }
+        /* Failure variant: a write that didn't land must not look like one that did. */
+        .app-toast-error i { color: #fca5a5; }
 
         /* ── Loading ────────────────────────────────── */
         .loading {
@@ -136,7 +138,10 @@
         }
 
         @media (max-width: 768px) {
-            .topbar { padding: 0 16px; flex-wrap: wrap; height: auto; gap: 8px; padding: 12px 16px; }
+            /* Switch the topbar from its 3-column grid to a wrapping flex row on
+               narrow screens — flex-wrap has no effect on a grid container, so the
+               zones used to clip instead of wrapping. */
+            .topbar { display: flex; flex-wrap: wrap; justify-content: space-between; height: auto; gap: 8px; padding: 12px 16px; }
             .topbar-nav { flex-wrap: wrap; }
             .dashboard-container { padding: 20px 16px; }
             .monthly-grid { grid-template-columns: 1fr; }
@@ -213,7 +218,9 @@
                 transition-duration: 120ms !important;
                 scroll-behavior: auto !important;
             }
-            .sidebar, .side-panel { transition: opacity var(--dur) ease !important; transform: none !important; }
+            /* Open/close instantly (no slide) but KEEP the transform that hides them
+               off-screen — overriding transform to none would pin both drawers open. */
+            .sidebar, .side-panel { transition: none !important; }
             .tl-bubble, .spend-bubble { animation: none !important; }
         }
         @media (prefers-reduced-transparency: reduce) {

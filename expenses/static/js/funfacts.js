@@ -1,5 +1,4 @@
 import { state } from './state.js';
-import { sourceLink } from './sources.js';
 
 // ── Fun facts: your spending vs. national / EU averages ───────────────────
 // Compares the user's average MONTHLY spend per category against rough benchmark
@@ -11,24 +10,21 @@ import { sourceLink } from './sources.js';
 // They're deliberately ballpark — this is a fun feature, not accounting.
 
 const BENCHMARKS = {
-    // category key → { avg: €/month for an average Slovak, label, icon, ctx, src }
-    groceries:    { avg: 260, label: 'groceries', icon: 'fa-basket-shopping', ctx: 'an average Slovak', src: 'Numbeo Slovakia food basket, 2025' },
-    gas_stations: { avg: 120, label: 'fuel',      icon: 'fa-gas-pump',        ctx: 'a typical Slovak driver', src: 'Numbeo fuel price × avg usage' },
-    eating_out:   { avg: 90,  label: 'eating out', icon: 'fa-utensils',       ctx: 'an average Slovak', src: 'Eurostat 2024 restaurants share' },
-    bolt:         { avg: 30,  label: 'taxis',      icon: 'fa-taxi',           ctx: 'an average city commuter', src: 'Numbeo Slovakia taxi tariff' },
-    travel:       { avg: 110, label: 'travel',     icon: 'fa-plane',          ctx: 'an average European', src: 'Eurostat 2024 recreation/travel' },
-    parking:      { avg: 25,  label: 'parking',    icon: 'fa-square-parking', ctx: 'a typical Slovak driver', src: 'Numbeo Slovakia parking' },
-    car_wash:     { avg: 12,  label: 'car care',   icon: 'fa-car',            ctx: 'an average driver', src: 'typical wash cadence' },
+    // category key (MUST match the category names in category-averages) →
+    // { avg: €/month benchmark, label, icon, ctx, src }
+    groceries:      { avg: 260,   label: 'groceries', icon: 'fa-basket-shopping', ctx: 'an average Slovak', src: 'Numbeo Slovakia food basket, 2025' },
+    'gas stations': { avg: 120,   label: 'fuel',      icon: 'fa-gas-pump',        ctx: 'a typical Slovak driver', src: 'Numbeo fuel price × avg usage' },
+    'eating out':   { avg: 90,    label: 'eating out', icon: 'fa-utensils',       ctx: 'an average Slovak', src: 'Eurostat 2024 restaurants share' },
+    bolt:           { avg: 30,    label: 'taxis',      icon: 'fa-taxi',           ctx: 'an average city commuter', src: 'Numbeo Slovakia taxi tariff' },
+    travel:         { avg: 110,   label: 'travel',     icon: 'fa-plane',          ctx: 'an average European', src: 'Eurostat 2024 recreation/travel' },
+    parking:        { avg: 25,    label: 'parking',    icon: 'fa-square-parking', ctx: 'a typical Slovak driver', src: 'Numbeo Slovakia parking' },
+    'car wash':     { avg: 12,    label: 'car care',   icon: 'fa-car',            ctx: 'an average driver', src: 'typical wash cadence' },
+    // Gym vs a Slovak fitness-club membership (Numbeo Slovakia 2025: €39.83/mo for one adult).
+    Gym:            { avg: 40,    label: 'the gym',   icon: 'fa-dumbbell',        ctx: 'a fitness-club membership', src: 'Numbeo Slovakia fitness club, monthly fee, 2025 (€39.83)' },
+    // Subscriptions vs typical digital bills — Slovak broadband (€17.59) + mobile plan
+    // (€22.43) ≈ €40/mo (Numbeo Slovakia 2025).
+    Subscriptions:  { avg: 40,    label: 'subscriptions', icon: 'fa-cloud',       ctx: 'a typical internet + mobile bill', src: 'Numbeo Slovakia broadband €17.59 + mobile €22.43, 2025' },
 };
-
-// A few cross-category "you spend on X what an average family spends on Y" lines.
-// Each references a relatable Slovak monthly figure for flavour.
-const RELATABLE = [
-    { amount: 30,  text: 'a monthly public-transport pass' },
-    { amount: 17,  text: 'a month of home internet' },
-    { amount: 8,   text: 'a restaurant lunch' },
-    { amount: 231, text: 'the monthly utilities of an 85m² flat' },
-];
 
 const fmt = (n) => `€${Math.round(n).toLocaleString()}`;
 
@@ -56,25 +52,10 @@ function compare(userAvg, bench) {
     return { tone, text, icon: bench.icon, src: bench.src };
 }
 
-// Pick a relatable cross-reference for a category's monthly spend.
-function relatableLine(userAvg, label) {
-    // Find the relatable item whose multiple lands closest to a clean small integer.
-    let best = null;
-    for (const r of RELATABLE) {
-        const mult = userAvg / r.amount;
-        if (mult < 1.3) continue;
-        const rounded = Math.round(mult);
-        const err = Math.abs(mult - rounded);
-        if (!best || err < best.err) best = { ...r, mult: rounded, err };
-    }
-    if (!best) return null;
-    return {
-        tone: 'neutral',
-        icon: 'fa-lightbulb',
-        text: `Your monthly <strong>${label}</strong> spend equals <strong>${best.mult}×</strong> ${best.text}.`,
-        src: 'Numbeo Slovakia reference prices',
-    };
-}
+// Tone → the color used for the user's bar (semantic, token-driven).
+const TONE_COLOR = {
+    pos: 'var(--pos)', neutral: 'var(--text-3)', warn: 'var(--caution)', neg: 'var(--neg)',
+};
 
 export function renderFunFacts() {
     const host = document.getElementById('funFacts');
@@ -82,42 +63,58 @@ export function renderFunFacts() {
     const averages = state.categoryAverages && state.categoryAverages.overall;
     if (!averages) { host.innerHTML = ''; return; }
 
-    const facts = [];
     // Category-vs-benchmark comparisons, richest categories first.
     const ranked = Object.keys(BENCHMARKS)
         .map(k => ({ k, avg: averages[k] || 0 }))
         .filter(x => x.avg > 3)                    // ignore near-zero categories
-        .sort((a, b) => b.avg - a.avg);
-
-    for (const { k, avg } of ranked) {
-        const c = compare(avg, BENCHMARKS[k]);
-        facts.push({ ...c, meta: 'vs. national average' });
-        if (facts.length >= 4) break;
-    }
-
-    // Fill a 4th tile with a relatable cross-reference if we have room.
-    if (facts.length < 4 && ranked.length) {
-        const top = ranked[0];
-        const rel = relatableLine(top.avg, BENCHMARKS[top.k].label);
-        if (rel) facts.push(rel);
-    }
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 6);
 
     const section = document.getElementById('funFactsSection');
-    if (!facts.length) {
+    if (!ranked.length) {
         host.innerHTML = '';
         if (section) section.style.display = 'none';
         return;
     }
     if (section) section.style.display = '';
-    // Small tiles: a muted pastel icon + concise comparison text + a source line.
-    const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-    host.innerHTML = facts.slice(0, 4).map(f => `
-        <div class="ov-tile tone-${f.tone}">
-            <span class="ov-tile-ico"><i class="fas ${f.icon}"></i></span>
-            <span class="ov-tile-body">
-                <span class="ov-tile-text">${f.text}</span>
-                ${f.src ? `<span class="ov-tile-src"><i class="fas fa-book"></i> ${sourceLink(f.src)}</span>` : ''}
-            </span>
-        </div>
-    `).join('');
+
+    // Horizontal "you vs typical" bars: a shared axis (0 → max), a baseline tick at the
+    // "typical" value, and the user's bar coloured by tone. The multiplier is the callout.
+    // Distinct shape from the recommendation LIST and the recurring TIMELINE.
+    const rows = ranked.map(({ k, avg }) => {
+        const b = BENCHMARKS[k];
+        const ratio = avg / b.avg;
+        const c = compare(avg, b);
+        // Scale: fit both the user value and the baseline; cap the axis so one huge
+        // outlier doesn't flatten the rest, but always leave the baseline visible.
+        const axisMax = Math.max(avg, b.avg) * 1.15;
+        const userPct = Math.min(100, (avg / axisMax) * 100);
+        const basePct = Math.min(100, (b.avg / axisMax) * 100);
+        const mult = ratio >= 0.95 && ratio <= 1.05 ? '≈ average'
+            : ratio >= 1 ? `${ratio.toFixed(1)}×` : `${Math.round(ratio * 100)}%`;
+        return `
+            <div class="cmp-row">
+                <div class="cmp-head">
+                    <span class="cmp-label"><i class="fas ${b.icon}"></i> ${esc(b.label)}</span>
+                    <span class="cmp-mult tone-${c.tone}">${mult} <span class="cmp-mult-sub">of ${esc(b.ctx)}</span></span>
+                </div>
+                <div class="cmp-track" title="You €${Math.round(avg)}/mo · typical €${b.avg}/mo">
+                    <span class="cmp-fill" style="width:${userPct.toFixed(1)}%;background:${TONE_COLOR[c.tone] || 'var(--text-3)'}"></span>
+                    <span class="cmp-base" style="left:${basePct.toFixed(1)}%" title="Typical: €${b.avg}/mo"></span>
+                </div>
+                <div class="cmp-vals">
+                    <span class="cmp-you">You €${Math.round(avg).toLocaleString()}/mo</span>
+                    <span class="cmp-typ">typical €${b.avg}/mo</span>
+                </div>
+            </div>`;
+    }).join('');
+
+    // Choose a column count that leaves no ragged last row: 4 → 2×2, others → up to 3.
+    const n = ranked.length;
+    const cols = n === 4 ? 2 : Math.min(3, n);
+    host.innerHTML = `<div class="cmp-list" data-cols="${cols}">${rows}</div>`;
+}
+
+function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }

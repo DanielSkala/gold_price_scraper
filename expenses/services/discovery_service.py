@@ -112,10 +112,11 @@ def _is_payment_gateway(merchant_lower):
 
 
 def _normalize(merchant):
-    """Lowercase, strip accents-ish noise, keep alphanumerics as space-separated tokens."""
+    """Lowercase, strip accents-ish noise, keep alphanumerics as space-separated tokens.
+    Collapses runs of whitespace so multi-word matching is reliable."""
     s = str(merchant).lower()
     s = re.sub(r"[^a-z0-9\s]", " ", s)
-    return s
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def _tokens(merchant):
@@ -131,11 +132,19 @@ def _tokens(merchant):
     return out
 
 
-def _match_candidate(merchant_lower):
-    """Return (category_name, meta) if the merchant hits a candidate dictionary, else None."""
+def _match_candidate(merchant_norm):
+    """Return (category_name, meta) if the merchant hits a candidate dictionary, else None.
+
+    `merchant_norm` must already be _normalize()d. Keywords are normalized the same way
+    (so punctuated keywords like 'h&m' and 'dr.max' become 'h m'/'dr max' and can match),
+    and matched at WORD-START boundaries — this keeps intended prefix matches ('zubn' →
+    'zubna', 'veterin' → 'veterinar') while rejecting mid-word false hits ('pet' inside
+    'carpet', 'house' inside 'warehouse')."""
+    padded = f" {merchant_norm} "
     for name, meta in CANDIDATE_CATEGORIES.items():
         for kw in meta["keywords"]:
-            if kw in merchant_lower:
+            kw_norm = _normalize(kw)
+            if kw_norm and f" {kw_norm}" in padded:
                 return name, meta
     return None
 

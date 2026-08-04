@@ -214,7 +214,7 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
         const shown = (expanded || query) ? list : list.slice(0, COLLAPSED_COUNT);
         iconGrid.innerHTML = shown.map(x =>
             `<button class="newcat-icon${x.i === selIcon ? ' sel' : ''}" data-icon="${x.i}" title="${x.i.replace('fa-', '')}"><i class="fas ${x.i}"></i></button>`
-        ).join('') || `<div class="newcat-noicons">No icons match “${query}”.</div>`;
+        ).join('') || `<div class="newcat-noicons">No icons match “${escapeHtmlCat(query)}”.</div>`;
         // Show/hide the "more" toggle (only when collapsed & not searching & there's more).
         if (!query && list.length > COLLAPSED_COUNT) {
             moreBtn.style.display = 'block';
@@ -234,7 +234,7 @@ export function openNewCategoryDialog(onCreated, opts = {}) {
         const nm = nameInput.value.trim() || 'category';
         preview.style.background = tint(selColor);
         preview.style.color = selColor;
-        preview.innerHTML = `<i class="fas ${selIcon} cat-badge-icon"></i>${nm}`;
+        preview.innerHTML = `<i class="fas ${escapeHtmlCat(selIcon)} cat-badge-icon"></i>${escapeHtmlCat(nm)}`;
     };
 
     // A name change suggests an icon (only until the user manually picks one).
@@ -337,7 +337,7 @@ export function openEditCategoryDialog(name, onSaved) {
     openNewCategoryDialog(onSaved, { edit: p, prefill: p });
 }
 
-// Delete a category (its transactions move to "other"). `onDeleted()` runs after a
+// Delete a category (its transactions fall back to "uncategorized"). `onDeleted()` runs after a
 // successful delete. Confirms first — it's destructive.
 export function deleteCategory(name, onDeleted) {
     if (!window.confirm(`Delete “${name}”? Its transactions will move to “other”.`)) return;

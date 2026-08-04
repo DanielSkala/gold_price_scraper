@@ -3,6 +3,8 @@ import json
 import os
 import threading
 
+from services import json_store
+
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'settings.json')
 
 _lock = threading.Lock()
@@ -32,11 +34,7 @@ def _load():
 
 
 def _save():
-    os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-    tmp = SETTINGS_FILE + '.tmp'
-    with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(_cache, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, SETTINGS_FILE)
+    json_store.write_atomic(SETTINGS_FILE, _cache)
 
 
 def get_all():
@@ -78,3 +76,36 @@ def set_category_budget(category, limit):
         data['category_budgets'] = budgets
         _save()
     return stored
+
+
+def rename_category_budget(old_name, new_name):
+    """Move a category's budget from old_name to new_name when a category is renamed,
+    so the limit follows the category instead of being stranded under the old key."""
+    old_name = (old_name or '').strip()
+    new_name = (new_name or '').strip()
+    if not old_name or not new_name or old_name == new_name:
+        return
+    with _lock:
+        data = _load()
+        budgets = dict(data.get('category_budgets') or {})
+        if old_name in budgets:
+            # Don't clobber an existing budget already set under the new name.
+            budgets.setdefault(new_name, budgets[old_name])
+            del budgets[old_name]
+            data['category_budgets'] = budgets
+            _save()
+
+
+def remove_category_budget(category):
+    """Drop a category's budget when the category is deleted, so no orphaned limit
+    lingers (and can't unexpectedly resurrect if the name is reused)."""
+    category = (category or '').strip()
+    if not category:
+        return
+    with _lock:
+        data = _load()
+        budgets = dict(data.get('category_budgets') or {})
+        if category in budgets:
+            del budgets[category]
+            data['category_budgets'] = budgets
+            _save()

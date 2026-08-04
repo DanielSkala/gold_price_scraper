@@ -72,24 +72,33 @@ export function renderRecommendations() {
             }
 
             const headlineHtml = data.headline ? renderHeadline(data.headline) : '';
-            const TOP = 3;
-            const top = recs.slice(0, TOP);
+            // Show the top 6 by default; the rest live in the SAME grid (hidden) so
+            // revealing them reflows the grid instead of stacking a tall second block.
+            const TOP = 6;
             const rest = recs.slice(TOP);
             const moreBtn = rest.length
-                ? `<button class="insight-more" id="recMoreBtn">Show ${rest.length} more</button>`
+                ? `<button class="insight-more" id="recMoreBtn">Show ${rest.length} more <i class="fas fa-chevron-down"></i></button>`
                 : '';
+            // Running total of achievable savings across ALL recommendations.
+            const totalSave = recs.reduce((s, r) => s + (r.saving > 0 ? r.saving : 0), 0);
+            const totalRow = totalSave > 0
+                ? `<div class="rec-total-row"><span>Potential savings</span><span class="rec-total-amt">up to ${euro(totalSave)}/mo</span></div>`
+                : '';
+            const cardsHtml = recs.map((r, i) =>
+                renderRecCard(r, i, i >= TOP ? 'rec-card-extra' : '')).join('');
             body.innerHTML = headlineHtml
-                + `<div class="rec-cards">${top.map((r, i) => renderRecCard(r, i)).join('')}</div>`
-                + (rest.length ? `<div class="rec-cards" id="recMore" style="display:none;margin-top:12px;">${rest.map((r, i) => renderRecCard(r, TOP + i)).join('')}</div>` : '')
-                + moreBtn;
+                + `<div class="rec-grid" id="recGrid">${cardsHtml}</div>`
+                + moreBtn
+                + totalRow;
 
             const btn = document.getElementById('recMoreBtn');
             if (btn) {
                 btn.addEventListener('click', () => {
-                    const more = document.getElementById('recMore');
-                    const open = more.style.display !== 'none';
-                    more.style.display = open ? 'none' : 'grid';
-                    btn.textContent = open ? `Show ${rest.length} more` : 'Show fewer';
+                    const grid = document.getElementById('recGrid');
+                    const open = grid.classList.toggle('show-all');
+                    btn.innerHTML = open
+                        ? 'Show fewer <i class="fas fa-chevron-up"></i>'
+                        : `Show ${rest.length} more <i class="fas fa-chevron-down"></i>`;
                 });
             }
 
@@ -117,12 +126,12 @@ function renderHeadline(h) {
 // Recommendation card: at rest, only a punchy headline + savings pill + a "Learn
 // more" nudge. The full explanation (detail + the assumption) stays hidden until
 // tapped — so the section scans instantly and invites a click.
-function renderRecCard(r, idx) {
+function renderRecCard(r, idx, extraClass = '') {
     const sev = SEV[r.severity] || SEV.tip;
     const save = r.saving > 0 ? `<span class="rec-save">Save ${euro(r.saving)}</span>` : '';
     const detail = esc(r.detail) + (r.assumption ? ` <span class="rec-assume">${linkifySources(r.assumption)}</span>` : '');
     return `
-        <div class="rec-card ${sev.tone}">
+        <div class="rec-card ${sev.tone} ${extraClass}">
             <div class="rec-card-head">
                 <span class="rec-ico"><i class="fas ${recIcon(r)}"></i></span>
                 <span class="rec-title">${esc(recHeadline(r))}</span>

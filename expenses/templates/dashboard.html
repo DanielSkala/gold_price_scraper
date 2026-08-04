@@ -18,12 +18,12 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/memories.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/misc.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/base.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/components.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/panel.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/memories.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/lightbox.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/misc.css') }}">
 </head>
 <body>
     <!-- Top Navigation Bar — 3 zones: brand · centered view switch · controls.
@@ -141,25 +141,30 @@
 
         <!-- Long-term Overview -->
         <div class="view-container active" id="overviewView">
-            <!-- Experiment: full photo mosaic (corner-to-corner) with liquid-glass panels -->
-            <div class="overview-header overview-mosaic-header" id="overviewHeader">
-                <!-- Back layer: rectangular photo mosaic filling the whole card -->
-                <div class="mosaic-grid" id="mosaicGrid"></div>
-                <!-- Darkening + color scrim so glass text stays legible over any photos -->
-                <div class="mosaic-scrim"></div>
-                <!-- Front layer: liquid-glass content panels -->
-                <div class="mosaic-content">
-                    <div class="glass-panel glass-intro">
-                        <div class="overview-eyebrow">All time</div>
-                        <h1 class="overview-title">Your spending at a glance</h1>
-                        <div class="overview-stats" id="overviewStats"></div>
+            <!-- "The Wave" hero: a warm greeting + one rotating positive highlight + the
+                 all-time stats, over a soft decorative wave drawn from the monthly spend
+                 series — an "overview of the overview". No judgmental budget ring; a
+                 subtle over-budget chip appears only for the live month (top-right). -->
+            <div class="overview-hero" id="overviewHero">
+                <div class="hero-content">
+                    <div class="hero-top">
+                        <div class="overview-eyebrow" id="heroEyebrow">Welcome back</div>
+                        <div class="hero-budget-chip" id="heroBudgetChip"></div>
                     </div>
-                    <div class="glass-panel glass-days">
-                        <div class="overview-bubbles-label">Your biggest spend days</div>
-                        <div class="glass-days-list" id="spendBubbles"></div>
-                    </div>
+                    <h1 class="overview-title" id="heroHeadline">Your spending at a glance</h1>
+                    <div class="overview-stats" id="overviewStats"></div>
                 </div>
+                <svg class="hero-wave" id="heroWave" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"></svg>
             </div>
+
+            <!-- Biggest spend days: a horizontal filmstrip of framed photo "memory cards". -->
+            <section class="ov-section" id="spendDaysSection">
+                <div class="ov-section-head">
+                    <h3 class="ov-section-title">Your biggest spend days</h3>
+                    <span class="ov-section-sub" id="spendDaysSub"></span>
+                </div>
+                <div class="filmstrip" id="spendBubbles"></div>
+            </section>
 
             <!-- Spending Trends stays immediately visible, right under the header. -->
             <div class="overview-grid">
@@ -208,7 +213,8 @@
                 <div id="recurringBody"></div>
             </section>
 
-            <!-- Ways to save: horizontal recommendation cards -->
+            <!-- Ways to save: a responsive grid of recommendation cards that reflows by
+                 count (never a lonely tall single-file list). -->
             <section class="ov-section" id="recommendationsSection" style="display:none;">
                 <div class="ov-section-head">
                     <h3 class="ov-section-title">Ways to save</h3>
@@ -217,13 +223,13 @@
                 <div id="recommendationsBody"></div>
             </section>
 
-            <!-- How you compare: small insight tiles vs national/EU averages -->
+            <!-- How you compare: comparison bars vs national/EU averages. -->
             <section class="ov-section" id="funFactsSection" style="display:none;">
                 <div class="ov-section-head">
                     <h3 class="ov-section-title">How you compare</h3>
                     <span class="ov-section-sub">vs. national &amp; EU averages</span>
                 </div>
-                <div class="ov-tiles" id="funFacts"></div>
+                <div id="funFacts"></div>
             </section>
 
             <div class="transactions-section">
@@ -423,6 +429,6 @@
         </div>
     </div>
 
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script type="module" src="{{ static_url('js/main.js') }}"></script>
 </body>
 </html>

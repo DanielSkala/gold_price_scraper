@@ -18,6 +18,8 @@ export const state = {
     currentFilteredTransactions: null,
     excludeOutliers: false,
     outlierData: null,
+    searchTerm: '',           // active filter for the overview transactions table
+    monthlySearchTerm: '',    // active filter for the monthly transactions table
     goldSpotData: null,
     goldPremiumData: null,
     goldPortfolioData: null,

@@ -3,7 +3,7 @@ import { closeSidePanel } from './outliers.js';
 
 // ── Panel Close Handlers ───────────────────────
 // Elements that OPEN the panel — don't treat their clicks as "outside" clicks.
-const PANEL_OPENER_SELECTOR = '[data-category-click], #dailySpendingChart, #currentMonthChart, #categoryChart, #categoryBreakdown, #monthPhotoTimeline, #dailyPhotoRow, #mosaicGrid, #spendBubbles, .mosaic-tile, .daily-photo, .glass-day, [data-sugg-idx]';
+const PANEL_OPENER_SELECTOR = '[data-category-click], #dailySpendingChart, #currentMonthChart, #categoryChart, #categoryBreakdown, #monthPhotoTimeline, #dailyPhotoRow, #spendBubbles, .film-card, .daily-photo, [data-sugg-idx]';
 document.addEventListener('click', function(e) {
     const panel = document.getElementById('sidePanel');
     if (panel.classList.contains('open') && !panel.contains(e.target) && !e.target.closest(PANEL_OPENER_SELECTOR)) {

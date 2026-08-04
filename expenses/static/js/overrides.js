@@ -2,15 +2,17 @@
 // Clicking a transaction's category badge opens a picker of all categories.
 // Selecting one reclassifies that transaction (persisted server-side), then the
 // whole dashboard reloads so the item moves out of its old category everywhere.
-import { allCategoryNames, getCategoryColor, getCategoryBg, getCategoryIcon } from './constants.js';
+import { allCategoryNames, getCategoryColor, getCategoryBg, getCategoryIcon, isFallbackCategory } from './constants.js';
 import { loadAllData } from './loading.js';
 import { applyOverrideToPanel, refreshPanelBody } from './panel.js';
 import { openNewCategoryDialog } from './categories.js';
 
-// Every category, live from the catalog (built-in + user-created), with 'other' last.
+// Every category, live from the catalog (built-in + user-created), with the fallback
+// bucket last — moving something back to "uncategorized" is the unusual choice.
 function categoryList() {
     const names = allCategoryNames();
-    return [...names.filter(c => c.toLowerCase() !== 'other'), 'other'];
+    const fallback = names.filter(isFallbackCategory);
+    return [...names.filter(c => !isFallbackCategory(c)), ...fallback];
 }
 
 let activePopover = null;
@@ -122,7 +124,7 @@ function reclassify(tx, category, anchorEl) {
             const n = data.affected || 1;
             if (category) {
                 const catName = category.replace('_', ' ').replace('-', ' ');
-                showToast(`Moved ${n} ${n === 1 ? 'transaction' : 'transactions'} to <b>${catName}</b>`);
+                showToast(`Moved ${n} ${n === 1 ? 'transaction' : 'transactions'} to <b>${esc(catName)}</b>`);
             } else {
                 showToast(`Reset ${n} ${n === 1 ? 'transaction' : 'transactions'} to automatic`);
             }
@@ -132,8 +134,10 @@ function reclassify(tx, category, anchorEl) {
 }
 
 // Brief toast notification (auto-dismisses). Reused for override feedback.
+// `variant`: 'ok' (default) or 'error' — an error gets a warning icon/colour so a write
+// that FAILED can never be mistaken for one that succeeded.
 let toastTimer = null;
-export function showToast(html) {
+export function showToast(html, variant = 'ok') {
     let toast = document.getElementById('appToast');
     if (!toast) {
         toast = document.createElement('div');
@@ -141,7 +145,9 @@ export function showToast(html) {
         toast.className = 'app-toast';
         document.body.appendChild(toast);
     }
-    toast.innerHTML = `<i class="fas fa-check-circle"></i> <span>${html}</span>`;
+    const isError = variant === 'error';
+    toast.classList.toggle('app-toast-error', isError);
+    toast.innerHTML = `<i class="fas ${isError ? 'fa-triangle-exclamation' : 'fa-check-circle'}"></i> <span>${html}</span>`;
     // restart the enter animation
     toast.classList.remove('show');
     void toast.offsetWidth;

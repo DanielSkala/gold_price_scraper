@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { loadAllData } from './loading.js';
+import { checkOnboarding } from './onboarding.js';
 
 // ── Collapsible sidebar: settings + expense-report management ───────────────
 
@@ -76,7 +77,9 @@ function deleteReport(filename) {
         .then(d => {
             if (d.error) { showMsg(d.error, true); return; }
             loadReports();
-            loadAllData();   // refresh the whole dashboard with the new dataset
+            // If that was the last report, return to the onboarding/empty state instead
+            // of leaving a dashboard full of NaN/empty widgets; otherwise refresh data.
+            checkOnboarding().then((hasData) => { if (hasData) loadAllData(); });
         })
         .catch(() => showMsg('Could not delete the report.', true));
 }

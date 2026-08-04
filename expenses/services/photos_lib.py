@@ -11,7 +11,7 @@ skipped but photos still load.
 import os
 import sqlite3
 import time
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from pathlib import Path
 
 try:
@@ -28,11 +28,15 @@ DERIVATIVES_DIR = PHOTOS_LIBRARY / "resources" / "derivatives"
 # Core Data epoch (2001-01-01 UTC) offset from unix epoch
 CORE_DATA_EPOCH = 978307200
 
-# In-process cache for dHash values (photos never change once taken)
-_HASH_CACHE = {}
-# TTL cache for expensive queries
-_QUERY_CACHE = {}
+# In-process cache for dHash values (photos never change once taken). Bounded LRU so a
+# long-running dashboard that browses many months can't grow process memory without end.
+_HASH_CACHE = OrderedDict()
+_HASH_CACHE_MAX = 20000
+# TTL + size-bounded cache for expensive Photos-DB queries. Expired/oldest entries are
+# evicted on write so distinct day/month lookups don't accumulate forever.
+_QUERY_CACHE = OrderedDict()
 _QUERY_TTL = 60
+_QUERY_CACHE_MAX = 512
 
 
 def _connect():
@@ -68,6 +72,7 @@ def _fetch_photos(where_clause, params):
     cache_key = (where_clause, params)
     cached = _QUERY_CACHE.get(cache_key)
     if cached and (time.time() - cached[0]) < _QUERY_TTL:
+        _QUERY_CACHE.move_to_end(cache_key)   # mark recently used
         return cached[1]
 
     conn = _connect()
@@ -102,6 +107,18 @@ def _fetch_photos(where_clause, params):
 
     photos = [_row_to_photo(r) for r in rows]
     _QUERY_CACHE[cache_key] = (time.time(), photos)
+    _QUERY_CACHE.move_to_end(cache_key)
+    # Evict expired entries first, then oldest, keeping the cache bounded.
+    now = time.time()
+    while _QUERY_CACHE:
+        oldest_key = next(iter(_QUERY_CACHE))
+        ts, _ = _QUERY_CACHE[oldest_key]
+        if now - ts >= _QUERY_TTL:
+            _QUERY_CACHE.popitem(last=False)
+        else:
+            break
+    while len(_QUERY_CACHE) > _QUERY_CACHE_MAX:
+        _QUERY_CACHE.popitem(last=False)
     return photos
 
 
@@ -177,10 +194,13 @@ def _hamming(a, b):
 
 def _photo_hash(uuid):
     if uuid in _HASH_CACHE:
+        _HASH_CACHE.move_to_end(uuid)   # LRU: mark recently used
         return _HASH_CACHE[uuid]
     path = thumbnail_path(uuid, size="thumb")
     h = _dhash(path) if path else None
     _HASH_CACHE[uuid] = h
+    if len(_HASH_CACHE) > _HASH_CACHE_MAX:
+        _HASH_CACHE.popitem(last=False)   # evict least-recently-used
     return h
 
 
@@ -193,9 +213,22 @@ def curate(photos, target=8, similarity_threshold=10):
       3. Round-robin across location groups to spread the selection.
       4. Cap at `target` items, preserving chronological order.
 
-    Runs O(N) hash computations (~5-15ms each). Cached per-uuid across calls.
+    Hash computations are the expensive part (~4-15ms each, PIL open+resize) but are
+    cached per-uuid across calls. Near-duplicate dedup only matters when we're picking
+    SEVERAL diverse photos; for a single representative photo we skip it entirely.
     """
-    if not photos:
+    if not photos or target <= 0:
+        return []
+
+    # Fast path: a single photo needs no de-duplication or diversification — we just
+    # want one representative shot. Stop at the FIRST reachable photo instead of
+    # resolving on-disk paths for every photo on the day and hashing them all. This is
+    # the dominant cost behind the slow tidy / top-spend / mosaic-target-1 paths (a
+    # busy day can hold well over a thousand photos).
+    if target == 1:
+        for p in photos:   # `photos` is already in chronological order
+            if thumbnail_path(p["uuid"]) is not None:
+                return [p]
         return []
 
     # Step 1: reachable-only

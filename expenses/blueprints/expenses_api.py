@@ -1,5 +1,6 @@
 """Expense analytics API routes."""
 import random
+import re
 from collections import defaultdict
 
 from flask import Blueprint, jsonify, request
@@ -255,15 +256,13 @@ def custom_categories():
 
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
-    color = (body.get('color') or '').strip()
-    icon = (body.get('icon') or 'fa-tag').strip()
+    color = _clean_color(body.get('color'))
+    icon = _clean_icon(body.get('icon'))
     keywords = _clean_keywords(body.get('keywords'))
     if not name:
         return jsonify({'error': 'name is required'}), 400
     if categories_service.is_known(name):
         return jsonify({'error': 'that category already exists'}), 400
-    if not color:
-        color = '#6366f1'
     entry = categories_service.add(name, color, icon, keywords)
     return jsonify({'ok': True, 'category': entry})
 
@@ -273,24 +272,29 @@ def edit_custom_category(name):
     """Edit (PUT) or delete (DELETE) ANY category — built-in or custom.
 
     - PUT body {name, color, icon, keywords?}: rename / restyle / re-key. On rename,
-      transactions follow via override + rule repointing. 'other' can't be renamed.
-    - DELETE: remove it and move all its transactions to 'other'. 'other' is protected.
+      transactions follow via override + rule repointing. The fallback bucket
+      ('uncategorized') can't be renamed; the real 'other' category can.
+    - DELETE: remove it and send its transactions back to the fallback bucket. The
+      fallback itself is protected — the app always needs somewhere to fall back to.
     """
     if not categories_service.is_known(name):
         return jsonify({'error': 'unknown category'}), 404
 
     if request.method == 'DELETE':
         if not categories_service.is_deletable(name):
-            return jsonify({'error': "the 'other' category can't be deleted"}), 400
+            return jsonify({'error': f"the '{categories_service.FALLBACK_CATEGORY}' "
+                                     "bucket can't be deleted"}), 400
         categories_service.delete(name)
-        # Move its transactions to 'other' by repointing any rules/overrides.
+        # Send its transactions back to the fallback bucket by repointing rules/overrides.
         overrides_service.repoint_category(name, categories_service.FALLBACK_CATEGORY)
+        # Drop any per-category budget so no orphaned limit lingers under the old name.
+        settings_service.remove_category_budget(name)
         return jsonify({'ok': True, 'deleted': name})
 
     body = request.get_json(silent=True) or {}
     new_name = (body.get('name') or '').strip()
-    color = (body.get('color') or '#6366f1').strip()
-    icon = (body.get('icon') or 'fa-tag').strip()
+    color = _clean_color(body.get('color'))
+    icon = _clean_icon(body.get('icon'))
     keywords = _clean_keywords(body.get('keywords'))
     if not new_name:
         return jsonify({'error': 'name is required'}), 400
@@ -302,7 +306,31 @@ def edit_custom_category(name):
         return jsonify({'error': 'unknown category'}), 404
     if renamed:
         overrides_service.repoint_category(name, new_name)
+        # Carry the category's budget over to the new name so it isn't stranded.
+        settings_service.rename_category_budget(name, new_name)
     return jsonify({'ok': True, 'category': entry, 'old_name': name})
+
+
+# Category color/icon come from the client and are rendered into HTML style
+# attributes and class names. Constrain them server-side to safe shapes so a stored
+# category can never carry markup into the DOM (defence at the trust boundary).
+_HEX_COLOR_RE = re.compile(r'^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$')
+_ICON_RE = re.compile(r'^fa-[a-z0-9-]{1,40}$')
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_DEFAULT_COLOR = '#6366f1'
+_DEFAULT_ICON = 'fa-tag'
+
+
+def _clean_color(raw):
+    """Return a valid hex color (#rgb or #rrggbb), else the default. Never raw text."""
+    c = (raw or '').strip()
+    return c if _HEX_COLOR_RE.match(c) else _DEFAULT_COLOR
+
+
+def _clean_icon(raw):
+    """Return a valid Font Awesome icon token (fa-...), else the default."""
+    i = (raw or '').strip().lower()
+    return i if _ICON_RE.match(i) else _DEFAULT_ICON
 
 
 def _clean_keywords(raw):
@@ -331,8 +359,8 @@ def create_category_from_suggestion():
     Used by the 'suggested categories' + button in the overview."""
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
-    color = (body.get('color') or '#6366f1').strip()
-    icon = (body.get('icon') or 'fa-tag').strip()
+    color = _clean_color(body.get('color'))
+    icon = _clean_icon(body.get('icon'))
     merchants = body.get('merchants') or []
     if not name:
         return jsonify({'error': 'name is required'}), 400
@@ -352,10 +380,14 @@ def create_category_from_suggestion():
     for m in raw_merchants:
         overrides_service.set_merchant_rule(m, name)
 
-    # Count how many transactions now fall under the new category.
+    # Count what ACTUALLY landed in the new category after applying the rules: a
+    # per-transaction override outranks a merchant rule, so a pinned transaction won't
+    # move. Re-read categorised data and count only those now in the new category.
+    refreshed = get_expenses_data()
     affected = sum(
-        1 for tx in all_expenses
+        1 for tx in refreshed
         if overrides_service.normalize_merchant(tx['merchant']) in norms
+        and tx['category'] == name
     )
     return jsonify({'ok': True, 'category': entry, 'affected': affected})
 
@@ -616,12 +648,13 @@ def set_category_override():
 
 @bp.route('/api/discover-categories')
 def discover_categories():
-    """Suggest new categories hidden inside the 'other' bucket. Deterministic;
-    analyses only transactions currently categorised as 'other'."""
+    """Suggest new categories hidden inside the fallback bucket. Deterministic; analyses
+    only still-uncategorized transactions — anything the user deliberately filed into the
+    real 'other' category has already been decided and is left alone."""
     all_expenses = get_expenses(exclude_outliers=_should_exclude_outliers())
     other_txs = []
     for tx in all_expenses:
-        if tx['category'] == 'other':
+        if tx['category'] == categories_service.FALLBACK_CATEGORY:
             other_txs.append({
                 'date': tx['date'].strftime('%Y-%m-%d'),
                 'merchant': tx['merchant'],
@@ -633,12 +666,20 @@ def discover_categories():
 
 @bp.route('/api/tidy-other')
 def tidy_other():
-    """Ranked queue of merchants still in 'other', for the playful tidy-up flow.
-    Each item is enriched with a few sample photos from days it was purchased.
-    Query: ?order=importance|count|total (default importance), ?limit=N."""
-    order = request.args.get('order', 'importance')
-    if order not in {'importance', 'count', 'total'}:
+    """Queue of still-uncategorized merchants, for the playful tidy-up flow.
+
+    Draws ONLY from the fallback bucket, so a merchant the user parked in the real
+    'other' category (the card's "Keep in Other") is a decided case and never comes back.
+
+    Query: ?order=mix|importance|count|total, ?limit=N, ?seed=S.
+    'mix' (the default) is importance-led but re-drawn on every call, so the queue isn't
+    the same handful of cards in the same order forever — a strict ranking meant a card
+    the user deliberately skipped reappeared first every single visit, and the long tail
+    was unreachable. Pass ?seed= to reproduce one particular draw."""
+    order = request.args.get('order', 'mix')
+    if order not in {'mix', 'importance', 'count', 'total'}:
         return jsonify({'error': f'invalid order: {order}'}), 400
+    seed = request.args.get('seed')
     try:
         limit = max(1, min(int(request.args.get('limit', '40') or 40), 100))
     except ValueError:
@@ -651,26 +692,36 @@ def tidy_other():
             'merchant': tx['merchant'],
             'amount': tx['amount'],
         }
-        for tx in all_expenses if tx['category'] == 'other'
+        for tx in all_expenses if tx['category'] == categories_service.FALLBACK_CATEGORY
     ]
-    result = tidy_service.build_tidy_queue(other_txs, limit=limit, order=order)
+    result = tidy_service.build_tidy_queue(other_txs, limit=limit, order=order, seed=seed)
 
-    # Enrich each item with up to a few photos from its sample days (best-effort;
-    # Photos DB may be unavailable, in which case items simply have no photos).
-    for item in result['items']:
-        photos = []
-        for day in item.get('sample_days', []):
-            try:
-                curated = photos_lib.curate(photos_lib.photos_for_day(day), target=1)
-            except Exception:
-                curated = []
-            if curated:
-                photos.append({**curated[0], 'date': day})
-            if len(photos) >= 3:
-                break
-        item['photos'] = photos
-
+    # Photos are loaded lazily per card (see /api/photos-for-days): enriching every
+    # card's sample days up front meant dozens of Photos-DB queries on one request
+    # (seconds of latency) for images that sit behind an opt-in toggle. Each item
+    # already carries `sample_days`, which the client uses to fetch on demand.
     return jsonify(result)
+
+
+@bp.route('/api/photos-for-days')
+def photos_for_days():
+    """Curated photos (one per day) for a small set of days — used by the tidy flow to
+    lazily load a card's photos only when the user opens its photo toggle.
+    Query: ?days=YYYY-MM-DD,YYYY-MM-DD,... (max 5). Best-effort: unavailable Photos DB
+    or days with no photos simply yield fewer results."""
+    raw = request.args.get('days', '')
+    days = [d.strip() for d in raw.split(',') if d.strip()][:5]
+    photos = []
+    for day in days:
+        if not _DATE_RE.match(day):
+            continue
+        try:
+            curated = photos_lib.curate(photos_lib.photos_for_day(day), target=1)
+        except Exception:
+            curated = []
+        if curated:
+            photos.append({**curated[0], 'date': day})
+    return jsonify({'photos': photos})
 
 
 @bp.route('/api/tidy-file', methods=['POST'])
@@ -679,8 +730,10 @@ def tidy_file():
 
     Body: {merchant: <normalized brand key>, category}. Because a brand group can span
     several exact merchant spellings (e.g. 'LIDL 164' + 'LIDL 042'), this learns a
-    merchant rule for EVERY distinct raw spelling in that group, so the whole card
-    moves together. Returns the number of transactions affected."""
+    merchant rule for every spelling that still has transactions in the fallback
+    bucket — i.e. exactly the ones the card represents — so the whole card moves
+    together. Returns the number of transactions affected, plus an `undo` payload that
+    /api/tidy-unfile can replay to restore the precise prior state."""
     body = request.get_json(silent=True) or {}
     norm = (body.get('merchant') or '').strip()
     category = (body.get('category') or '').strip()
@@ -689,29 +742,67 @@ def tidy_file():
     if not categories_service.is_known(category):
         return jsonify({'error': f'unknown category: {category}'}), 400
 
-    # Collect every distinct raw merchant string that normalizes to this brand.
+    fallback = categories_service.FALLBACK_CATEGORY
     all_expenses = get_expenses_data()
-    raw_merchants = {
-        tx['merchant'] for tx in all_expenses
+    group = [
+        tx for tx in all_expenses
         if overrides_service.normalize_merchant(tx['merchant']) == norm
-    }
-    for m in raw_merchants:
-        overrides_service.set_merchant_rule(m, category)
+    ]
+    # Only the spellings this card actually stands for: those still sitting in the
+    # fallback bucket. A spelling the user already placed elsewhere must keep its
+    # category — filing a card for 'Dr.Max 295' (in 'other') must not drag the
+    # 'Dr.Max 223' transactions out of 'groceries' where they were deliberately put.
+    raw_merchants = {tx['merchant'] for tx in group if tx['category'] == fallback}
+    if not raw_merchants:
+        return jsonify({'ok': True, 'category': category, 'affected': 0, 'merchants': 0,
+                        'undo': {'rules': {}, 'overrides': {}}})
 
+    undo = {'rules': overrides_service.set_merchant_rules(raw_merchants, category)}
+
+    # A per-transaction override pinned to the fallback bucket OUTRANKS the rule we just
+    # wrote, so without this the transaction would silently stay in the very bucket the
+    # user is emptying — while the UI reported it as moved. Such pins are created when a
+    # category is deleted (see overrides_service.repoint_category): 'other' is the
+    # absence of a category, so an explicit filing clears them. Pins to a REAL category
+    # are deliberate per-transaction choices and still win.
+    existing = overrides_service.get_all()
+    pinned = [
+        key for key in (
+            overrides_service.tx_key(tx['date'].strftime('%Y-%m-%d'), tx['merchant'], tx['amount'])
+            for tx in group if tx['merchant'] in raw_merchants
+        )
+        if existing.get(key) == fallback
+    ]
+    undo['overrides'] = overrides_service.clear_overrides(pinned)
+
+    # Count what ACTUALLY moved, so the UI can't over-report. Recompute categorisation
+    # (get_expenses_data re-reads the just-written rules) and count only brand-group
+    # transactions that now resolve to the target category.
+    refreshed = get_expenses_data()
     affected = sum(
-        1 for tx in all_expenses
+        1 for tx in refreshed
         if overrides_service.normalize_merchant(tx['merchant']) == norm
+        and tx['category'] == category
     )
-    return jsonify({'ok': True, 'category': category, 'affected': affected, 'merchants': len(raw_merchants)})
+    return jsonify({'ok': True, 'category': category, 'affected': affected,
+                    'merchants': len(raw_merchants), 'undo': undo})
 
 
 @bp.route('/api/tidy-unfile', methods=['POST'])
 def tidy_unfile():
-    """Undo a tidy filing: clear the merchant rules for a brand group so its
-    transactions revert to automatic categorisation (back into 'other' for items
-    that only landed elsewhere via this rule). Body: {merchant: <normalized brand key>}."""
+    """Undo a tidy filing, putting the brand group back exactly where it was.
+
+    Body: {merchant: <normalized brand key>, undo: <payload from /api/tidy-file>}. When
+    `undo` is present it is replayed verbatim, so Back restores only what that filing
+    changed and can't wipe a merchant rule the user had set up earlier. Without it (an
+    older page still open) we fall back to clearing the brand group's rules, which
+    reverts those transactions to automatic categorisation."""
     body = request.get_json(silent=True) or {}
     norm = (body.get('merchant') or '').strip()
+    undo = body.get('undo')
+    if isinstance(undo, dict):
+        overrides_service.apply_undo(undo)
+        return jsonify({'ok': True, 'restored': True})
     if not norm:
         return jsonify({'error': 'merchant is required'}), 400
     all_expenses = get_expenses_data()
@@ -719,9 +810,14 @@ def tidy_unfile():
         tx['merchant'] for tx in all_expenses
         if overrides_service.normalize_merchant(tx['merchant']) == norm
     }
-    for m in raw_merchants:
-        overrides_service.set_merchant_rule(m, None)   # falsy clears the rule
+    overrides_service.set_merchant_rules(raw_merchants, None)   # falsy clears the rules
     return jsonify({'ok': True, 'merchants': len(raw_merchants)})
+
+
+# NOTE: "Keep in Other" needs no endpoint of its own — it files the brand into the real
+# 'other' category through /api/tidy-file like any other choice. The queue only draws
+# from the fallback bucket, so a decided merchant drops out of it automatically, and the
+# choice stays visible (and reversible) as an ordinary category in the UI.
 
 
 @bp.route('/api/transactions-for-merchants', methods=['POST'])

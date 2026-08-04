@@ -1,5 +1,6 @@
 import { state, panelState } from './state.js';
 import { loadAllData } from './loading.js';
+import { escapeHtml } from './constants.js';
 
 // ── Outliers ───────────────────────────────────
 export function toggleOutliers() {
@@ -37,8 +38,8 @@ export function renderOutlierPanel() {
     document.getElementById('outlierList').innerHTML = state.outlierData.outliers.map(tx => `
         <div class="outlier-item">
             <div class="outlier-item-left">
-                <span class="outlier-merchant">${tx.merchant}</span>
-                <span class="outlier-meta">${new Date(tx.date).toLocaleDateString()} &middot; ${tx.category.replace('_', ' ')}</span>
+                <span class="outlier-merchant">${escapeHtml(tx.merchant)}</span>
+                <span class="outlier-meta">${new Date(tx.date).toLocaleDateString()} &middot; ${escapeHtml(tx.category.replace('_', ' '))}</span>
             </div>
             <span class="outlier-amount">&euro;${tx.amount.toFixed(2)}</span>
         </div>

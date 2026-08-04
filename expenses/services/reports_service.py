@@ -6,6 +6,7 @@ dates. Also handles uploading new reports. Kept dependency-light and generic so 
 works for any bank export the parser understands.
 """
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -69,35 +70,65 @@ def list_reports():
     }
 
 
+def _file_sha256(path):
+    """SHA-256 of a file's bytes, streamed so large files don't load into memory."""
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(65536), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def save_report(file_storage):
     """Persist an uploaded CSV. Returns (ok, message_or_meta). Validates that it
-    parses to at least one transaction so we don't accept junk files."""
+    parses to at least one transaction so we don't accept junk files, and rejects an
+    exact byte-for-byte duplicate of a report we already have (uploading the same
+    export twice would otherwise double every total)."""
     name = secure_filename(file_storage.filename or '')
     if not name.lower().endswith('.csv'):
         return False, 'Please upload a .csv file.'
     os.makedirs(EXPENSE_REPORTS_DIR, exist_ok=True)
 
-    # Avoid clobbering an existing file: suffix with a counter if needed.
+    # Write to a temp file first so we can hash/validate before committing to a
+    # permanent name. This also lets us reject exact-content duplicates cleanly.
     base, ext = os.path.splitext(name)
+    tmp = os.path.join(EXPENSE_REPORTS_DIR, f'.upload-{base}{ext}.tmp')
+    file_storage.save(tmp)
+
+    def _cleanup_tmp():
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+    # Reject an exact-content duplicate of any existing report.
+    try:
+        new_hash = _file_sha256(tmp)
+        for existing in glob.glob(os.path.join(EXPENSE_REPORTS_DIR, '*.csv')):
+            if os.path.getsize(existing) == os.path.getsize(tmp) and _file_sha256(existing) == new_hash:
+                _cleanup_tmp()
+                return False, f'That file is identical to “{os.path.basename(existing)}”, which is already loaded.'
+    except OSError:
+        _cleanup_tmp()
+        return False, 'Could not read the uploaded file.'
+
+    # Validate it parses; if not, drop it and report the problem.
+    try:
+        txs = parse_expenses_from_csv(tmp)
+    except Exception:
+        txs = []
+    if not txs:
+        _cleanup_tmp()
+        return False, 'That file has no transactions we could read.'
+
+    # Commit to a permanent, non-clobbering name.
     dest = os.path.join(EXPENSE_REPORTS_DIR, name)
     n = 1
     while os.path.exists(dest):
         dest = os.path.join(EXPENSE_REPORTS_DIR, f'{base} ({n}){ext}')
         n += 1
-
-    file_storage.save(dest)
-
-    # Validate it parses; if not, remove it and report the problem.
-    try:
-        txs = parse_expenses_from_csv(dest)
-    except Exception:
-        txs = []
-    if not txs:
-        try:
-            os.remove(dest)
-        except OSError:
-            pass
-        return False, 'That file has no transactions we could read.'
+    os.replace(tmp, dest)
+    _invalidate_expenses()
     return True, _report_meta(dest)
 
 
@@ -108,6 +139,7 @@ def delete_report(filename):
     if not os.path.exists(path):
         return False, 'Report not found.'
     os.remove(path)
+    _invalidate_expenses()
     return True, safe
 
 
@@ -129,4 +161,16 @@ def load_samples():
         if not os.path.exists(dest):
             shutil.copy2(src, dest)
             copied += 1
+    if copied:
+        _invalidate_expenses()
     return True, copied
+
+
+def _invalidate_expenses():
+    """Drop the expense snapshot cache after a report file changes. Imported lazily to
+    avoid a circular import (expenses_service imports credit_card_expenses, not us)."""
+    try:
+        from services import expenses_service
+        expenses_service.invalidate_cache()
+    except Exception:
+        pass

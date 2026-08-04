@@ -343,17 +343,25 @@ export function renderCategoryChart() {
             colors: sorted.map(([c]) => getCategoryColor(c)),
             line: { color: chartBg(), width: 2 }
         },
-        textinfo: 'label+percent',
-        textposition: 'outside',
-        textfont: { size: 11, color: plotlyFont().color },
-        // Reserve room for the outside labels so they aren't clipped; this shrinks the
-        // pie a bit to fit them. Extra margin gives the automargin more space to work with.
+        // Percentages INSIDE the ring (cleaner than outside leader-lines); Plotly hides
+        // labels that don't fit, so tiny slices stay uncluttered. Names live in the
+        // legend beside the ring, and hover shows the full figure.
+        textinfo: 'percent',
+        textposition: 'inside',
+        insidetextorientation: 'horizontal',
+        texttemplate: '%{percent:.0%}',
+        textfont: { size: 11, color: '#fff' },
         automargin: true,
         hovertemplate: '<b>%{label}</b><br>€%{value:,.0f} · %{percent}<extra></extra>',
     }], {
         font: plotlyFont(),
-        margin: { t: 24, r: 24, b: 24, l: 24 },
-        showlegend: false,
+        margin: { t: 20, r: 16, b: 20, l: 16 },
+        showlegend: true,
+        legend: {
+            orientation: 'v', x: 1.02, y: 0.5, xanchor: 'left', yanchor: 'middle',
+            font: { size: 11, color: plotlyFont().color }, bgcolor: 'rgba(0,0,0,0)',
+            itemsizing: 'constant',
+        },
         plot_bgcolor: chartBg(),
         paper_bgcolor: chartBg(),
         hoverlabel: hoverLabel(),

@@ -15,6 +15,9 @@ import json
 import os
 import re
 import threading
+import unicodedata
+
+from services import json_store
 
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'category_overrides.json')
 
@@ -29,6 +32,13 @@ _WEB_TOKENS = {"com", "www", "net", "org", "io", "app", "sk", "cz", "eu"}
 
 _lock = threading.Lock()
 _cache = None  # dict with keys "overrides" and "rules"
+# Bumped on every persisted change so the expense snapshot cache knows to re-apply.
+_generation = 0
+
+
+def generation():
+    """Monotonic counter of override/rule changes — part of the expense-cache key."""
+    return _generation
 
 
 def tx_key(date_str, merchant, amount):
@@ -53,7 +63,11 @@ def normalize_merchant(merchant):
     'BILLA SPOL S RO 113' maps to 'billa'. Used for clustering transactions from the
     same brand together (recurring-charge detection, discovery) — NOT for rule
     identity (see `merchant_key`)."""
-    s = str(merchant).lower()
+    # Fold accents to ASCII (Č→c, ř→r, ž→z) BEFORE stripping non-letters, so Slovak/Czech
+    # brand names keep their letters instead of collapsing (e.g. 'Čaj' → 'caj', not 'aj',
+    # which would have merged unrelated brands and mis-grouped recurring/tidy matches).
+    s = unicodedata.normalize("NFKD", str(merchant).lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
     # Keep letters/digits/spaces; turn everything else into a separator.
     s = re.sub(r"[^a-z0-9]+", " ", s)
     tokens = s.split()
@@ -94,11 +108,9 @@ def _load():
 
 
 def _save():
-    os.makedirs(os.path.dirname(OVERRIDES_FILE), exist_ok=True)
-    tmp = OVERRIDES_FILE + '.tmp'
-    with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(_cache, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, OVERRIDES_FILE)
+    global _generation
+    json_store.write_atomic(OVERRIDES_FILE, _cache)
+    _generation += 1
 
 
 def get_all():
@@ -137,6 +149,70 @@ def set_merchant_rule(merchant, category):
             data['rules'].pop(mk, None)
         _save()
     return category or None
+
+
+def set_merchant_rules(merchants, category):
+    """Set (or clear) the rule for MANY merchants in a single persisted write.
+
+    Returns {merchant_key: previous_category_or_None} — everything needed to put the
+    store back exactly as it was (see `apply_undo`), so an undo can never wipe a rule
+    this change didn't create. Pass a falsy `category` to clear."""
+    with _lock:
+        data = _load()
+        prev = {}
+        for m in merchants:
+            mk = merchant_key(m)
+            if mk in prev:
+                continue
+            prev[mk] = data['rules'].get(mk)
+            if category:
+                data['rules'][mk] = category
+            else:
+                data['rules'].pop(mk, None)
+        if prev:
+            _save()
+    return prev
+
+
+def clear_overrides(keys):
+    """Drop the given per-transaction overrides. Returns {tx_key: previous_category}
+    for the ones actually removed, so the change can be undone exactly."""
+    with _lock:
+        data = _load()
+        prev = {k: data['overrides'][k] for k in keys if k in data['overrides']}
+        for k in prev:
+            data['overrides'].pop(k, None)
+        if prev:
+            _save()
+    return prev
+
+
+def apply_undo(undo):
+    """Exact inverse of a bulk change made via `set_merchant_rules`/`clear_overrides`.
+
+    `undo` is {"rules": {merchant_key: prev_or_null}, "overrides": {tx_key: prev_or_null}}.
+    A null/missing previous value means "there was no entry" → remove it. ONLY the listed
+    keys are touched, so undoing a tidy filing can't clobber rules the user set earlier."""
+    with _lock:
+        data = _load()
+        changed = False
+        for store in ('rules', 'overrides'):
+            entries = undo.get(store) if isinstance(undo, dict) else None
+            if not isinstance(entries, dict):
+                continue
+            for k, prev in entries.items():
+                if not isinstance(k, str):
+                    continue
+                if isinstance(prev, str) and prev:
+                    if data[store].get(k) != prev:
+                        data[store][k] = prev
+                        changed = True
+                elif k in data[store]:
+                    data[store].pop(k, None)
+                    changed = True
+        if changed:
+            _save()
+    return changed
 
 
 def get_override(key):

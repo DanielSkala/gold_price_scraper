@@ -15,7 +15,7 @@ Everything is deterministic string/number logic — no model, no API, and it use
 only date + merchant + amount, which the parser already provides.
 """
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from statistics import median
 
 from services import overrides_service
@@ -76,8 +76,11 @@ def detect_recurring(transactions, as_of=None):
     """Detect recurring merchants.
 
     transactions: list of {date: datetime, merchant: str, amount: float, category: str}.
-    as_of: reference "today" (datetime) for next-charge & zombie logic. Defaults to
-           the latest transaction date in the data.
+    as_of: reference "today" (datetime) for next-charge & zombie logic. Defaults to the
+           real current date (clamped to be no earlier than the latest transaction).
+           "Is this charge still active?" is a present-tense question, so a subscription
+           that stopped months ago is correctly a zombie and drops out of committed spend
+           — matching the UI, which times predictions against the real today.
 
     Returns {
         recurring: [ {merchant, display, category, cadence, occurrences, avg_amount,
@@ -91,7 +94,11 @@ def detect_recurring(transactions, as_of=None):
         return {"recurring": [], "committed_monthly": 0.0, "count": 0}
 
     if as_of is None:
-        as_of = max(tx["date"] for tx in transactions)
+        latest_tx = max(tx["date"] for tx in transactions)
+        now = datetime.now()
+        # Clamp to the latest transaction so future-dated data can't push predictions
+        # past the data we actually have.
+        as_of = max(now, latest_tx)
 
     # Group by brand-level merchant.
     groups = defaultdict(list)

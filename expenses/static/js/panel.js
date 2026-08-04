@@ -1,7 +1,7 @@
 import { state, panelState, amountColor } from './state.js';
 import { renderPhotoStrip } from './memories.js';
 import { categoryBadgeHtml } from './overrides.js';
-import { getCategoryColor } from './constants.js';
+import { getCategoryColor, escapeHtml } from './constants.js';
 
 // ── Unified Side Panel ─────────────────────────
 // Panel holds an unfiltered list of transactions plus filter/selection state.
@@ -226,9 +226,12 @@ export function renderPanelBody() {
     // "Back to category" link when we've drilled from a category calendar into a day.
     const backHtml = panelState.backCategory
         ? (() => {
-              const safeCat = panelState.backCategory.replace(/'/g, "\\'");
+              // Escape for BOTH the JS-string literal and the HTML attribute it sits in,
+              // so a category name with quotes/brackets can't break out of the handler.
+              const safeCat = escapeHtml(panelState.backCategory.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+              const backLabel = escapeHtml(panelState.backCategory.replace('_', ' ').replace('-', ' '));
               return `<div class="panel-back" onclick="event.stopPropagation(); App.showCategoryDetails('${safeCat}')">
-               <i class="fas fa-chevron-left"></i> Back to ${panelState.backCategory.replace('_', ' ').replace('-', ' ')}
+               <i class="fas fa-chevron-left"></i> Back to ${backLabel}
            </div>`;
           })()
         : '';
@@ -277,7 +280,7 @@ export function renderPanelBody() {
             <div class="transaction-item ${isSel ? 'selected' : ''}" data-key="${k}" onclick="App.toggleTxSelection(this)">
                 <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
                     <div style="min-width: 0; flex: 1;">
-                        <div style="font-weight: 500; font-size: 0.88rem; margin-bottom: 4px;">${tx.merchant}</div>
+                        <div style="font-weight: 500; font-size: 0.88rem; margin-bottom: 4px;">${escapeHtml(tx.merchant)}</div>
                         ${categoryBadgeHtml(tx)}
                         ${dateStr}
                     </div>
@@ -355,11 +358,11 @@ function renderPanelInsights(txs) {
     return `
         <div class="panel-insights">
             ${chips.map(c => `
-                <div class="panel-insight" ${c.title ? `title="${String(c.title).replace(/"/g, '&quot;')}"` : ''}>
+                <div class="panel-insight" ${c.title ? `title="${escapeHtml(c.title)}"` : ''}>
                     <i class="fas ${c.icon}"></i>
                     <div class="pi-body">
                         <span class="pi-value">${c.value}</span>
-                        <span class="pi-label">${c.label}</span>
+                        <span class="pi-label">${escapeHtml(c.label)}</span>
                     </div>
                 </div>
             `).join('')}

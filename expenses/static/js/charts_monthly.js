@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { getCategoryColor, getCategoryIcon, isEditableCategory, isDeletableCategory, plotlyFont, plotlyGrid, chartBg, hoverLabel, isDark, PLOTLY_CONFIG } from './constants.js';
+import { getCategoryColor, getCategoryIcon, isEditableCategory, isDeletableCategory, isFallbackCategory, plotlyFont, plotlyGrid, chartBg, hoverLabel, isDark, PLOTLY_CONFIG } from './constants.js';
 import { renderMonthMemories } from './memories.js';
 import { showCategoryDetails, showDayDetails } from './panel.js';
 import { renderMonthlyTransactionsTable } from './transactions.js';
@@ -464,19 +464,25 @@ function budgetBlockHtml(b, isCurrent) {
 export function renderCategoryBreakdown() {
     if (!state.currentMonthDetails) return;
     const container = document.getElementById('categoryBreakdown');
-    const data = Object.entries(state.currentMonthDetails.category_totals).filter(([_, a]) => a > 0).sort((a, b) => b[1] - a[1]);
+    // Only categories with at least one transaction this month — an all-zero card is
+    // noise. A category with no activity (a new one, or 'other' before you've filed
+    // anything into it) simply doesn't appear until it has something in it.
+    const txCountOf = (cat) => state.currentMonthDetails.category_transactions?.[cat]?.length || 0;
+    const data = Object.entries(state.currentMonthDetails.category_totals)
+        .filter(([cat, amount]) => txCountOf(cat) > 0 || amount > 0)
+        .sort((a, b) => b[1] - a[1]);
     const total = data.reduce((s, [_, a]) => s + a, 0);
     const budgets = state.currentMonthDetails.budgets || { items: {}, is_current: false };
 
     container.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; align-items: start;">
             ${data.map(([cat, amount]) => {
-                const pct = ((amount / total) * 100).toFixed(1);
+                const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : '0.0';
                 const txCount = state.currentMonthDetails.category_transactions[cat]?.length || 0;
                 const color = getCategoryColor(cat);
                 const safe = cat.replace(/'/g, "\\'");
                 const bud = budgets.items[cat];
-                // Every category can be edited; only 'other' can't be deleted or renamed.
+                // Every category can be edited; only the fallback bucket is structural.
                 const editBtn = isEditableCategory(cat) ? `
                         <button class="cat-card-btn" title="Edit category"
                             onclick="event.stopPropagation(); App.editCategory('${safe}')"><i class="fas fa-pen"></i></button>` : '';
@@ -493,30 +499,32 @@ export function renderCategoryBreakdown() {
                     ? `€${amount.toFixed(2)} <span class="cat-bud-limit">/ €${Math.round(bud.limit)}</span>`
                     : `€${amount.toFixed(2)}`;
                 const budgetBlock = bud ? budgetBlockHtml(bud, budgets.is_current) : '';
-                // The 'other' bucket gets a "Tidy up" action right here — this is where a
-                // user looking at their bloated Other category expects to act on it.
-                const tidyBtn = (cat === 'other')
-                    ? `<button class="cat-tidy-btn" onclick="event.stopPropagation(); App.startTidy()">
-                           <i class="fas fa-wand-magic-sparkles"></i> Tidy up — sort these into categories
+                // The fallback bucket gets a compact "Tidy up" pill inline on the stats row
+                // (instead of a full-width button that made this card — and its whole grid
+                // row — taller). It's a sibling action button that doesn't trigger the
+                // card's drill-down click.
+                const tidyPill = isFallbackCategory(cat)
+                    ? `<button class="cat-tidy-pill" title="Sort these into categories"
+                           onclick="event.stopPropagation(); App.startTidy()">
+                           <i class="fas fa-wand-magic-sparkles"></i> Tidy up
                        </button>`
                     : '';
                 return `
-                    <div class="cat-breakdown-card${cat === 'other' ? ' cat-card-other' : ''}" data-cat="${escAttr(cat)}" onclick="App.showCategoryDetails('${safe}')"
-                        style="border-left-color:${color};">
+                    <div class="cat-breakdown-card${isFallbackCategory(cat) ? ' cat-card-other' : ''}" data-cat="${escAttr(cat)}" onclick="App.showCategoryDetails('${safe}')"
+                        style="border-left-color:${escAttr(color)};">
                         ${actions}
                         <div style="font-weight: 600; font-size: 0.85rem; text-transform: capitalize; margin-bottom: 4px; display:flex; align-items:center; gap:7px;">
-                            <i class="fas ${getCategoryIcon(cat)}" style="color:${color}; font-size:0.8rem;"></i>
-                            ${cat.replace('_', ' ').replace('-', ' ')}
+                            <i class="fas ${escAttr(getCategoryIcon(cat))}" style="color:${escAttr(color)}; font-size:0.8rem;"></i>
+                            ${escapeHtmlM(cat.replace('_', ' ').replace('-', ' '))}
                         </div>
                         <div style="font-family: var(--font-serif); font-size: 1.35rem; color: var(--text); margin-bottom: 4px;">
                             ${amountLine}
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-3);">
-                            <span>${pct}%</span>
-                            <span>${txCount} txns</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-3);">
+                            <span>${pct}% · ${txCount} txns</span>
+                            ${tidyPill}
                         </div>
                         <div class="cat-bud-area">${budgetBlock}</div>
-                        ${tidyBtn}
                     </div>
                 `;
             }).join('')}

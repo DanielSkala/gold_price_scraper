@@ -1,4 +1,5 @@
 import { showDayDetails } from './panel.js';
+import { escapeHtml } from './constants.js';
 
 // ── Memories: month photo timeline (Apple-style bubbles) ──
 export function renderLocationChips(container, locations) {
@@ -9,7 +10,7 @@ export function renderLocationChips(container, locations) {
     container.innerHTML = locations.map(loc => `
         <span class="location-chip">
             <i class="fas fa-map-marker-alt"></i>
-            ${loc.name}
+            ${escapeHtml(loc.name)}
             <span class="chip-count">${loc.count}</span>
         </span>
     `).join('');
@@ -65,7 +66,7 @@ export function renderDayCluster(day, spend) {
     const dow = d.toLocaleDateString(undefined, { weekday: 'short' });
     const dayNum = d.getDate();
     const locLabel = day.primary_location
-        ? `<div class="tl-day-loc"><i class="fas fa-map-marker-alt"></i>${day.primary_location}</div>`
+        ? `<div class="tl-day-loc"><i class="fas fa-map-marker-alt"></i>${escapeHtml(day.primary_location)}</div>`
         : '';
 
     // Spend for this day (may be undefined/0 if nothing was spent).
@@ -185,7 +186,7 @@ export function renderPanelPhotoBody() {
     const locChipsHtml = (top_locations && top_locations.length)
         ? `<div class="location-chips" style="margin-bottom:8px;">${top_locations.map(loc => `
             <span class="location-chip">
-                <i class="fas fa-map-marker-alt"></i> ${loc.name}
+                <i class="fas fa-map-marker-alt"></i> ${escapeHtml(loc.name)}
                 <span class="chip-count">${loc.count}</span>
             </span>`).join('')}</div>`
         : '';

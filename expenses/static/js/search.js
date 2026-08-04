@@ -4,27 +4,22 @@ import { renderMonthlyTransactionsTable, renderTransactionsTable } from './trans
 // ── Search ─────────────────────────────────────
 // Both search boxes exist in the initial HTML, so (with deferred modules) the DOM
 // is already parsed here and we can attach listeners directly.
+// The active term is stored in state so it survives a re-sort or a data refresh; the
+// table renderers apply it themselves (see renderTransactionsTable). Here we just
+// record the term and trigger a re-render.
 const searchBox = document.getElementById('searchBox');
 if (searchBox) {
     searchBox.addEventListener('input', function(e) {
-        const term = e.target.value.toLowerCase();
+        state.searchTerm = e.target.value.toLowerCase();
         state.transactionsDisplayed = 50;
-        if (!term) { renderTransactionsTable(); return; }
-        renderTransactionsTable(state.transactions.filter(tx =>
-            tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term)
-        ));
+        renderTransactionsTable();
     });
 }
 
 const monthlySearchBox = document.getElementById('monthlySearchBox');
 if (monthlySearchBox) {
     monthlySearchBox.addEventListener('input', function(e) {
-        if (!state.currentMonthDetails) return;
-        const term = e.target.value.toLowerCase();
-        const all = Object.values(state.currentMonthDetails.category_transactions || {}).flat();
-        if (!term) { renderMonthlyTransactionsTable(); return; }
-        renderMonthlyTransactionsTable(all.filter(tx =>
-            tx.merchant.toLowerCase().includes(term) || tx.category.toLowerCase().includes(term)
-        ));
+        state.monthlySearchTerm = e.target.value.toLowerCase();
+        renderMonthlyTransactionsTable();
     });
 }
